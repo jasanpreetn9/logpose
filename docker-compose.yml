@@ -1,6 +1,7 @@
 services:
   backend:
-    build: ./backend
+    image: ghcr.io/jasanpreetn9/logpose-backend:latest
+    build: ./backend          # used by `docker compose up --build` for local dev
     restart: unless-stopped
     environment:
       CONFIG_PATH: /app/config.yml
@@ -15,7 +16,8 @@ services:
       - "8989:8989"
 
   frontend:
-    build: ./frontend
+    image: ghcr.io/jasanpreetn9/logpose-frontend:latest
+    build: ./frontend          # used by `docker compose up --build` for local dev
     restart: unless-stopped
     ports:
       - "3000:80"
