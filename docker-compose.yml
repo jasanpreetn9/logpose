@@ -1,0 +1,23 @@
+services:
+  backend:
+    build: ./backend
+    restart: unless-stopped
+    environment:
+      CONFIG_PATH: /app/config.yml
+      DATA_DIR: /app/data
+    volumes:
+      - ./config.yml:/app/config.yml:ro
+      - ./data:/app/data
+      # Mount your actual media paths — must match libraryPath / downloadPath in config.yml
+      - /Volumes/hdd_media/anime/One Pace:/media/library
+      - /Volumes/hdd_downloads/complete:/media/downloads
+    ports:
+      - "8989:8989"
+
+  frontend:
+    build: ./frontend
+    restart: unless-stopped
+    ports:
+      - "3000:80"
+    depends_on:
+      - backend

@@ -1,0 +1,23 @@
+# Runtime data
+data/library.db
+data/library.db-shm
+data/library.db-wal
+data/library.json
+data/library.json.bak
+
+# Secrets / local config — copy config.yml.example instead
+config.yml
+
+# Go
+backend/tmp/
+backend/*.exe
+backend/server
+
+# Node / SvelteKit
+frontend/node_modules/
+frontend/.svelte-kit/
+frontend/build/
+
+# OS
+.DS_Store
+Thumbs.db
