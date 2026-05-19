@@ -52,14 +52,15 @@ func (c *Client) Login() error {
 	}
 	defer resp.Body.Close()
 
-	if resp.StatusCode != 200 {
+	// qBittorrent 5.2.0+ returns 204; older versions return 200
+	if resp.StatusCode != 200 && resp.StatusCode != 204 {
 		return fmt.Errorf("qbit login failed: %d", resp.StatusCode)
 	}
 
-	// Extract SID cookie
+	// qBittorrent 5.2.0+ changed the cookie name to QBT_SID_<port>; older versions use SID
 	for _, cookie := range resp.Cookies() {
-		if cookie.Name == "SID" {
-			c.Cookie = "SID=" + cookie.Value
+		if cookie.Name == "SID" || strings.HasPrefix(cookie.Name, "QBT_SID_") {
+			c.Cookie = cookie.Name + "=" + cookie.Value
 			return nil
 		}
 	}

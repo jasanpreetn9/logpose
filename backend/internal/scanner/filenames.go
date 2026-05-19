@@ -23,8 +23,9 @@ type ParsedFilename struct {
 }
 
 // Download format: [One Pace][1058-1059] Egghead 01 [1080p][CA3F14A8].mkv
+// Also handles comma-separated anime episodes: [One Pace][42,22] Gaimon 01 [1080p][9269F40F].mkv
 var downloadFilenameRegex = regexp.MustCompile(
-	`^\[One Pace\]\[(\d+)(?:-(\d+))?\]\s(.+?)\s(\d+)(?:\s(?:\(?(?:Extended|EXT|EXTENDED)\)?))?\s\[(\d+p)\]\[([A-Fa-f0-9]{8})\]\.(mkv|mp4)$`,
+	`^\[One Pace\]\[(\d+)(?:(?:(?:,\d+)+)|(?:-(\d+)))?\]\s(.+?)\s(\d+)(?:\s(?:\(?(?:Extended|EXT|EXTENDED)\)?))?\s\[(\d+p)\]\[([A-Fa-f0-9]{8})\]\.(mkv|mp4)$`,
 )
 
 // Library format: S36E01 - New Emperors [CA3F14A8].mkv
