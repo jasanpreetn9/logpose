@@ -3,7 +3,7 @@
 A Sonarr-style media manager built specifically for [One Pace](https://onepace.net). Tracks arcs and episodes, monitors for new releases, automatically downloads through qBittorrent, generates Jellyfin-compatible NFO files, and keeps your library organised.
 
 <div align="center">
-  <img src="https://github.com/jasanpreetn9/onepace-library/blob/main/public/view.png?raw=true">
+  <img src="https://github.com/jasanpreetn9/logpose/blob/main/public/view.png?raw=true">
 </div>
 
 ---
