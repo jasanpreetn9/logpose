@@ -21,6 +21,7 @@
 	let scanningLibrary = $state(false);
 	let scanningDownloads = $state(false);
 	let scanError = $state<string | null>(null);
+	let appVersion = $state<string | null>(null);
 
 	let stopSSE: (() => void) | null = null;
 
@@ -33,6 +34,10 @@
 		arcs.set(list);
 		activity.set(acts);
 		historyEvents.set(hist);
+
+		api.getVersion()
+			.then((v) => (appVersion = v))
+			.catch(() => (appVersion = null));
 
 		stopSSE = startSSE((ev) => {
 			activity.update((l) => [ev, ...l]);
@@ -180,6 +185,13 @@
 					</ScrollArea>
 				</div>
 			{/if}
+
+			<!-- Version -->
+			<div class="mt-auto border-t border-sidebar-border px-4 py-2">
+				<span class="text-xs text-muted-foreground">
+					Logpose {appVersion ?? '…'}
+				</span>
+			</div>
 		</div>
 	</aside>
 

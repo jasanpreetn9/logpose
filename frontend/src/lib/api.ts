@@ -100,7 +100,7 @@ function mapArc(a: RawArc): UnifiedArc {
         episodesAdapted: a.episodes_adapted || null,
         fillerEpisodes: a.filler_episodes || null,
         timeSavedMins: a.time_saved_mins || null,
-        timeSavedPercent: a.time_saved_percent || null,
+        timeSavedPercent: a.time_saved_percent ? a.time_saved_percent.replace(/%$/, '') : null,
 
         episodeCount: a.episode_count,
         episodesDownloaded: a.episode_downloaded,
@@ -147,6 +147,11 @@ export const api = {
 
     async getHistory(): Promise<ActivityEvent[]> {
         return request<ActivityEvent[]>('/history');
+    },
+
+    async getVersion(): Promise<string> {
+        const res = await request<{ version: string }>('/version');
+        return res.version;
     },
 
     async monitorArc(arcId: number, monitored: boolean): Promise<void> {

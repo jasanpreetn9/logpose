@@ -48,6 +48,8 @@ func RegisterRoutes(
 
 		api.Post("/qbittorrent/test", HandleTestQBittorrent(cfg))
 
+		api.Get("/version", HandleGetVersion())
+
 		api.Get("/config", HandleGetConfig(cfg))
 		api.Post("/config", HandleUpdateConfig(cfg, cfgPath, tickerReset))
 
