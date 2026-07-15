@@ -14,7 +14,8 @@ type TorrentInfo struct {
 	Hash        string `json:"hash"`
 }
 
-// GetCompleted returns all torrents with filter=completed.
+// GetCompleted returns completed torrents in the Logpose category.
+// Torrents added by other applications are never returned.
 func (c *Client) GetCompleted() ([]TorrentInfo, error) {
 	if c.Cookie == "" {
 		if err := c.Login(); err != nil {
@@ -34,7 +35,7 @@ func (c *Client) GetCompleted() ([]TorrentInfo, error) {
 }
 
 func (c *Client) getCompletedRequest() ([]TorrentInfo, error) {
-	resp, err := c.makeRequest("GET", "/api/v2/torrents/info?filter=completed", nil)
+	resp, err := c.makeRequest("GET", "/api/v2/torrents/info?filter=completed&category="+url.QueryEscape(Category), nil)
 	if err != nil {
 		return nil, err
 	}

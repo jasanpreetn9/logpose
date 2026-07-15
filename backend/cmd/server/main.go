@@ -109,7 +109,7 @@ func main() {
 
 	// qBittorrent completion poller.
 	if cfg.QBittorrent.Enabled {
-		go poller.Start(ctx, qb, metaClient, store, acts, cfg.LibraryPath)
+		go poller.Start(ctx, qb, metaClient, store, acts, cfg.LibraryPath, cfg.DownloadPath)
 	}
 
 	// fsnotify watcher on downloads directory.

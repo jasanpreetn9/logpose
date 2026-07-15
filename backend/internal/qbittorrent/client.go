@@ -92,6 +92,9 @@ func (c *Client) makeRequest(method, endpoint string, body io.Reader) (*http.Res
 		return nil, err
 	}
 
+	if method == "POST" && body != nil {
+		req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	}
 	if c.Cookie != "" {
 		req.Header.Set("Cookie", c.Cookie)
 	}

@@ -13,6 +13,10 @@ import (
 // torrent download URLs that qBittorrent can actually fetch.
 var nyaaViewRe = regexp.MustCompile(`^https?://nyaa\.si/view/(\d+)`)
 
+// Category is assigned to every torrent Logpose adds, so the completion
+// poller only ever touches torrents that belong to Logpose.
+const Category = "logpose"
+
 func (c *Client) AddTorrent(downloadURL string) error {
 	if c.Cookie == "" {
 		if err := c.Login(); err != nil {
@@ -40,10 +44,24 @@ func normalizeTorrentURL(rawURL string) string {
 	return rawURL
 }
 
+// ensureCategory creates the Logpose category if it doesn't exist yet.
+// qBittorrent returns 409 when it already exists — both count as success.
+func (c *Client) ensureCategory() {
+	form := url.Values{}
+	form.Set("category", Category)
+	form.Set("savePath", "")
+	resp, err := c.makeRequest("POST", "/api/v2/torrents/createCategory", strings.NewReader(form.Encode()))
+	if err == nil {
+		resp.Body.Close()
+	}
+}
+
 func (c *Client) addTorrentRequest(downloadURL string) error {
+	c.ensureCategory()
 	downloadURL = normalizeTorrentURL(downloadURL)
 	form := url.Values{}
 	form.Set("urls", downloadURL)
+	form.Set("category", Category)
 
 	req, err := http.NewRequest(
 		"POST",

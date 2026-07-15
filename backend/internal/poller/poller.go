@@ -27,6 +27,7 @@ func Start(
 	store *library.Store,
 	acts *activity.Store,
 	libPath string,
+	downloadPath string,
 ) {
 	ticker := time.NewTicker(10 * time.Second)
 	defer ticker.Stop()
@@ -36,7 +37,7 @@ func Start(
 		case <-ctx.Done():
 			return
 		case <-ticker.C:
-			if err := poll(qb, meta, store, acts, libPath); err != nil {
+			if err := poll(qb, meta, store, acts, libPath, downloadPath); err != nil {
 				log.Printf("poller: %v", err)
 			}
 		}
@@ -49,6 +50,7 @@ func poll(
 	store *library.Store,
 	acts *activity.Store,
 	libPath string,
+	downloadPath string,
 ) error {
 	torrents, err := qb.GetCompleted()
 	if err != nil {
@@ -56,7 +58,7 @@ func poll(
 	}
 
 	for _, t := range torrents {
-		if err := importTorrent(t, qb, meta, store, acts, libPath); err != nil {
+		if err := importTorrent(t, qb, meta, store, acts, libPath, downloadPath); err != nil {
 			log.Printf("poller: import %q: %v", t.Name, err)
 		}
 	}
@@ -70,10 +72,21 @@ func importTorrent(
 	store *library.Store,
 	acts *activity.Store,
 	libPath string,
+	downloadPath string,
 ) error {
 	contentPath := t.ContentPath
 	if contentPath == "" {
 		contentPath = filepath.Join(t.SavePath, t.Name)
+	}
+
+	// qBittorrent may run in another container or host, so the path it
+	// reports can be unresolvable from here. Fall back to the same file or
+	// folder name inside our own downloads directory.
+	if _, err := os.Stat(contentPath); err != nil && downloadPath != "" {
+		alt := filepath.Join(downloadPath, filepath.Base(contentPath))
+		if _, altErr := os.Stat(alt); altErr == nil {
+			contentPath = alt
+		}
 	}
 
 	// Single-file torrent: name parses directly as an episode filename.
