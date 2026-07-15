@@ -14,7 +14,7 @@ type EpisodeVersion = {
     crc32: string;
     version: "normal" | "extended";
     file_path: string | null;
-    status: "imported" | "missing" | "upgradable";
+    status: "imported" | "missing" | "upgradable" | "queued";
 }
 
 type UnifiedArc = {

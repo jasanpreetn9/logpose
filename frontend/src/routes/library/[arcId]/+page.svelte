@@ -48,6 +48,7 @@
 			throw new Error('No downloadable version available');
 		}
 		await api.downloadEpisode(target.crc32);
+		await refresh();
 	}
 
 	async function toggleMonitorArc() {

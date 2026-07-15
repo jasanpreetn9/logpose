@@ -16,6 +16,7 @@ import (
 	"onepace-library/internal/api"
 	"onepace-library/internal/config"
 	"onepace-library/internal/db"
+	"onepace-library/internal/downloads"
 	"onepace-library/internal/library"
 	"onepace-library/internal/metadata"
 	"onepace-library/internal/poller"
@@ -71,6 +72,8 @@ func main() {
 		}
 	}
 
+	tracker := downloads.NewTracker()
+
 	tickerReset := make(chan time.Duration, 1)
 
 	r := chi.NewRouter()
@@ -79,7 +82,7 @@ func main() {
 	r.Use(middleware.Timeout(30 * time.Second))
 	r.Use(api.CORS)
 
-	api.RegisterRoutes(r, metaClient, cfg, cfgPath, store, qb, acts, hub, tickerReset)
+	api.RegisterRoutes(r, metaClient, cfg, cfgPath, store, qb, acts, hub, tracker, tickerReset)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -109,7 +112,7 @@ func main() {
 
 	// qBittorrent completion poller.
 	if cfg.QBittorrent.Enabled {
-		go poller.Start(ctx, qb, metaClient, store, acts, cfg.LibraryPath, cfg.DownloadPath)
+		go poller.Start(ctx, qb, metaClient, store, acts, tracker, cfg.LibraryPath, cfg.DownloadPath)
 	}
 
 	// fsnotify watcher on downloads directory.

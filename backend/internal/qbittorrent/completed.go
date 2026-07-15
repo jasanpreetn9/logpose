@@ -8,34 +8,40 @@ import (
 )
 
 type TorrentInfo struct {
-	Name        string `json:"name"`
-	SavePath    string `json:"save_path"`
-	ContentPath string `json:"content_path"`
-	Hash        string `json:"hash"`
+	Name        string  `json:"name"`
+	SavePath    string  `json:"save_path"`
+	ContentPath string  `json:"content_path"`
+	Hash        string  `json:"hash"`
+	Progress    float64 `json:"progress"`
 }
 
-// GetCompleted returns completed torrents in the Logpose category.
+// Completed reports whether the torrent has finished downloading.
+func (t TorrentInfo) Completed() bool {
+	return t.Progress >= 1
+}
+
+// GetTorrents returns all torrents in the Logpose category, complete or not.
 // Torrents added by other applications are never returned.
-func (c *Client) GetCompleted() ([]TorrentInfo, error) {
+func (c *Client) GetTorrents() ([]TorrentInfo, error) {
 	if c.Cookie == "" {
 		if err := c.Login(); err != nil {
 			return nil, err
 		}
 	}
 
-	result, err := c.getCompletedRequest()
+	result, err := c.getTorrentsRequest()
 	if err == errSessionExpired {
 		c.Cookie = ""
 		if loginErr := c.Login(); loginErr != nil {
 			return nil, loginErr
 		}
-		return c.getCompletedRequest()
+		return c.getTorrentsRequest()
 	}
 	return result, err
 }
 
-func (c *Client) getCompletedRequest() ([]TorrentInfo, error) {
-	resp, err := c.makeRequest("GET", "/api/v2/torrents/info?filter=completed&category="+url.QueryEscape(Category), nil)
+func (c *Client) getTorrentsRequest() ([]TorrentInfo, error) {
+	resp, err := c.makeRequest("GET", "/api/v2/torrents/info?category="+url.QueryEscape(Category), nil)
 	if err != nil {
 		return nil, err
 	}
@@ -45,7 +51,7 @@ func (c *Client) getCompletedRequest() ([]TorrentInfo, error) {
 		return nil, errSessionExpired
 	}
 	if resp.StatusCode != 200 {
-		return nil, fmt.Errorf("GetCompleted: status %d", resp.StatusCode)
+		return nil, fmt.Errorf("GetTorrents: status %d", resp.StatusCode)
 	}
 
 	var torrents []TorrentInfo

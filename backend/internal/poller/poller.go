@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"onepace-library/internal/activity"
+	"onepace-library/internal/downloads"
 	"onepace-library/internal/library"
 	"onepace-library/internal/metadata"
 	"onepace-library/internal/nfo"
@@ -26,6 +27,7 @@ func Start(
 	meta *metadata.Client,
 	store *library.Store,
 	acts *activity.Store,
+	tracker *downloads.Tracker,
 	libPath string,
 	downloadPath string,
 ) {
@@ -37,7 +39,7 @@ func Start(
 		case <-ctx.Done():
 			return
 		case <-ticker.C:
-			if err := poll(qb, meta, store, acts, libPath, downloadPath); err != nil {
+			if err := poll(qb, meta, store, acts, tracker, libPath, downloadPath); err != nil {
 				log.Printf("poller: %v", err)
 			}
 		}
@@ -49,15 +51,31 @@ func poll(
 	meta *metadata.Client,
 	store *library.Store,
 	acts *activity.Store,
+	tracker *downloads.Tracker,
 	libPath string,
 	downloadPath string,
 ) error {
-	torrents, err := qb.GetCompleted()
+	torrents, err := qb.GetTorrents()
 	if err != nil {
-		return fmt.Errorf("GetCompleted: %w", err)
+		return fmt.Errorf("GetTorrents: %w", err)
 	}
 
+	// Torrents still downloading are surfaced as "queued" in the UI.
+	var activeCRCs []string
 	for _, t := range torrents {
+		if t.Completed() {
+			continue
+		}
+		if parsed, err := scanner.ParseOnePaceFilename(t.Name); err == nil {
+			activeCRCs = append(activeCRCs, parsed.CRC32)
+		}
+	}
+	tracker.SetActive(activeCRCs)
+
+	for _, t := range torrents {
+		if !t.Completed() {
+			continue
+		}
 		if err := importTorrent(t, qb, meta, store, acts, libPath, downloadPath); err != nil {
 			log.Printf("poller: import %q: %v", t.Name, err)
 		}

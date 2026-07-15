@@ -5,6 +5,7 @@ import (
 	"net/http"
 
 	"onepace-library/internal/activity"
+	"onepace-library/internal/downloads"
 	"onepace-library/internal/metadata"
 	"onepace-library/internal/qbittorrent"
 )
@@ -13,7 +14,7 @@ type AddDownloadRequest struct {
 	CRC32 string `json:"crc32"`
 }
 
-func HandleAddToQbit(meta *metadata.Client, qb *qbittorrent.Client, acts *activity.Store, enabled bool) http.HandlerFunc {
+func HandleAddToQbit(meta *metadata.Client, qb *qbittorrent.Client, acts *activity.Store, tracker *downloads.Tracker, enabled bool) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if !enabled {
 			http.Error(w, "qBittorrent is not enabled — configure it in Settings", http.StatusServiceUnavailable)
@@ -43,6 +44,7 @@ func HandleAddToQbit(meta *metadata.Client, qb *qbittorrent.Client, acts *activi
 			return
 		}
 
+		tracker.MarkQueued(req.CRC32)
 		acts.Add(activity.EventDownloadQueued, "Download queued: "+ep.Title, ep.File.URL, true)
 
 		w.Header().Set("Content-Type", "application/json")
