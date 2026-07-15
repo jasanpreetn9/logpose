@@ -68,6 +68,23 @@ func (c *Client) Login() error {
 	return errors.New("qbittorrent did not provide SID cookie")
 }
 
+// Version returns the qBittorrent application version (requires Login first).
+func (c *Client) Version() (string, error) {
+	resp, err := c.makeRequest("GET", "/api/v2/app/version", nil)
+	if err != nil {
+		return "", err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != 200 {
+		return "", fmt.Errorf("qbit version failed: %d", resp.StatusCode)
+	}
+	b, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return "", err
+	}
+	return strings.TrimSpace(string(b)), nil
+}
+
 // makeRequest with cookie
 func (c *Client) makeRequest(method, endpoint string, body io.Reader) (*http.Response, error) {
 	req, err := http.NewRequest(method, c.Host+endpoint, body)

@@ -22,7 +22,8 @@
 			download_failed: 'Download',
 			library_scan: 'Library Scan',
 			downloads_scan: 'Downloads Scan',
-			import: 'Import'
+			import: 'Import',
+			metadata_refresh: 'Metadata'
 		};
 		return map[type] ?? type;
 	}

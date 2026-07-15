@@ -10,6 +10,7 @@ const (
 	EventLibraryScan       EventType = "library_scan"
 	EventDownloadsScan     EventType = "downloads_scan"
 	EventImport            EventType = "import"
+	EventMetadataRefresh   EventType = "metadata_refresh"
 )
 
 type Event struct {

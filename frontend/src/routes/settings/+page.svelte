@@ -2,6 +2,7 @@
 	import { onMount } from 'svelte';
 	import { api } from '$lib/api';
 	import { Button } from '$lib/components/ui/button';
+	import { RefreshCw, Plug } from 'lucide-svelte';
 
 	let cfg = $state<AppConfig | null>(null);
 	let qbPassword = $state('');
@@ -10,6 +11,13 @@
 	let loadError = $state<string | null>(null);
 	let saved = $state(false);
 	let fieldErrors = $state<Record<string, string>>({});
+	let saveError = $state<string | null>(null);
+	let refreshingMeta = $state(false);
+	let refreshResult = $state<string | null>(null);
+	let refreshError = $state<string | null>(null);
+	let testingQb = $state(false);
+	let qbTestResult = $state<string | null>(null);
+	let qbTestError = $state<string | null>(null);
 
 	onMount(async () => {
 		try {
@@ -26,12 +34,58 @@
 		saving = true;
 		fieldErrors = {};
 		saved = false;
-		const result = await api.updateConfig({ ...cfg, qbPassword: qbPassword || undefined });
-		saving = false;
-		if (result.errors) {
-			fieldErrors = result.errors;
-		} else {
-			saved = true;
+		saveError = null;
+		try {
+			const result = await api.updateConfig({ ...cfg, qbPassword: qbPassword || undefined });
+			if (result.errors) {
+				fieldErrors = result.errors;
+			} else if (result.error) {
+				saveError = result.error;
+			} else {
+				saved = true;
+				qbPassword = '';
+			}
+		} catch (e) {
+			saveError = e instanceof Error ? e.message : 'Failed to save settings';
+		} finally {
+			saving = false;
+		}
+	}
+
+	async function testQbit() {
+		if (!cfg) return;
+		testingQb = true;
+		qbTestResult = null;
+		qbTestError = null;
+		try {
+			const res = await api.testQBittorrent({
+				host: cfg.qbHost,
+				username: cfg.qbUsername,
+				password: qbPassword || undefined
+			});
+			if (res.ok) {
+				qbTestResult = res.version ? `Connected — qBittorrent v${res.version}` : 'Connected';
+			} else {
+				qbTestError = res.error ?? 'Connection failed';
+			}
+		} catch (e) {
+			qbTestError = e instanceof Error ? e.message : 'Connection failed';
+		} finally {
+			testingQb = false;
+		}
+	}
+
+	async function refreshMetadata() {
+		refreshingMeta = true;
+		refreshResult = null;
+		refreshError = null;
+		try {
+			const res = await api.refreshMetadata();
+			refreshResult = `Refreshed — ${res.episodes} episodes, ${res.arcs} arcs, ${res.nfosUpdated} NFOs regenerated.`;
+		} catch (e) {
+			refreshError = e instanceof Error ? e.message : 'Metadata refresh failed';
+		} finally {
+			refreshingMeta = false;
 		}
 	}
 </script>
@@ -87,6 +141,17 @@
 						<p class="text-xs text-red-500">{fieldErrors.metadataRefreshInterval}</p>
 					{/if}
 				</div>
+				<div class="flex items-center gap-4 pt-1">
+					<Button type="button" variant="outline" size="sm" onclick={refreshMetadata} disabled={refreshingMeta}>
+						<RefreshCw class="mr-2 h-4 w-4 {refreshingMeta ? 'animate-spin' : ''}" />
+						{refreshingMeta ? 'Refreshing…' : 'Refresh Now'}
+					</Button>
+					{#if refreshResult}
+						<p class="text-sm text-green-500">{refreshResult}</p>
+					{:else if refreshError}
+						<p class="text-sm text-red-500">{refreshError}</p>
+					{/if}
+				</div>
 			</section>
 
 			<!-- qBittorrent -->
@@ -109,6 +174,17 @@
 					<label class="block text-sm font-medium">Password</label>
 					<input type="password" bind:value={qbPassword} placeholder="Leave blank to keep current" class="field" />
 				</div>
+				<div class="flex items-center gap-4 pt-1">
+					<Button type="button" variant="outline" size="sm" onclick={testQbit} disabled={testingQb}>
+						<Plug class="mr-2 h-4 w-4" />
+						{testingQb ? 'Testing…' : 'Test Connection'}
+					</Button>
+					{#if qbTestResult}
+						<p class="text-sm text-green-500">{qbTestResult}</p>
+					{:else if qbTestError}
+						<p class="text-sm text-red-500">{qbTestError}</p>
+					{/if}
+				</div>
 			</section>
 
 			<!-- Server -->
@@ -127,6 +203,8 @@
 				</Button>
 				{#if saved}
 					<p class="text-sm text-green-500">Settings saved.</p>
+				{:else if saveError}
+					<p class="text-sm text-red-500">{saveError}</p>
 				{/if}
 			</div>
 		</form>

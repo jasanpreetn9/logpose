@@ -1,6 +1,9 @@
 package metadata
 
-import "fmt"
+import (
+	"fmt"
+	"time"
+)
 
 func (c *Client) GetEpisodeByCRC32(crc string) (Episode, error) {
 	c.Cache.mu.RLock()
@@ -47,6 +50,20 @@ func (c *Client) EpisodesByArc(arcNumber int) []Episode {
 		out = append(out, ep)
 	}
 	return out
+}
+
+// Counts returns the number of cached episodes and arcs.
+func (c *Client) Counts() (episodes, arcs int) {
+	c.Cache.mu.RLock()
+	defer c.Cache.mu.RUnlock()
+	return len(c.Cache.EpisodesByCRC), len(c.Cache.ArcsByNumber)
+}
+
+// LastUpdated returns when the cache was last refreshed.
+func (c *Client) LastUpdated() time.Time {
+	c.Cache.mu.RLock()
+	defer c.Cache.mu.RUnlock()
+	return c.Cache.LastUpdated
 }
 
 // Episodes returns a snapshot of all episodes, safe for iteration.
