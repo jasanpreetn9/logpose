@@ -18,7 +18,6 @@ import (
 	"onepace-library/internal/db"
 	"onepace-library/internal/library"
 	"onepace-library/internal/metadata"
-	"onepace-library/internal/nfo"
 	"onepace-library/internal/poller"
 	"onepace-library/internal/qbittorrent"
 	"onepace-library/internal/scanner"
@@ -103,7 +102,7 @@ func main() {
 					continue
 				}
 				log.Println("Metadata refreshed.")
-				regenStaleNFOs(metaClient, store)
+				api.RegenerateStaleNFOs(metaClient, store)
 			}
 		}
 	}()
@@ -162,30 +161,4 @@ func main() {
 		log.Fatalf("Shutdown failed: %v", err)
 	}
 	log.Println("Server exited gracefully.")
-}
-
-// regenStaleNFOs re-generates NFO files for any episodes whose metadata changed.
-func regenStaleNFOs(meta *metadata.Client, store *library.Store) {
-	stale := meta.StaleEpisodes()
-	if len(stale) == 0 {
-		return
-	}
-	store.Read(func(lib *library.Library) {
-		for _, arc := range lib.Arcs {
-			for _, ep := range arc.Episodes {
-				for _, crc := range stale {
-					if ep.CRC32 == crc && ep.FilePath != "" {
-						epMeta, err := meta.GetEpisodeByCRC32(crc)
-						if err != nil {
-							continue
-						}
-						arcTitle := meta.GetArcTitle(arc.ArcNumber)
-						nfoPath := nfo.NFOPathForVideo(ep.FilePath)
-						nfo.GenerateEpisodeNFO(ep, epMeta, arcTitle, nfoPath)
-						log.Printf("Regenerated NFO for %s (CRC %s)", ep.Title, crc)
-					}
-				}
-			}
-		}
-	})
 }

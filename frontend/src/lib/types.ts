@@ -40,7 +40,7 @@ type UnifiedArc = {
 
 type ActivityEvent = {
     id: string;
-    type: 'download_queued' | 'download_failed' | 'library_scan' | 'downloads_scan' | 'import';
+    type: 'download_queued' | 'download_failed' | 'library_scan' | 'downloads_scan' | 'import' | 'metadata_refresh';
     timestamp: string;
     message: string;
     details: string;

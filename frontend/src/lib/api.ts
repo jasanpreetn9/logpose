@@ -164,6 +164,10 @@ export const api = {
         return request(`/arcs/${arcId}/verify-nfo`, { method: 'POST' });
     },
 
+    async refreshMetadata(): Promise<{ episodes: number; arcs: number; nfosUpdated: number; lastUpdated: string }> {
+        return request('/metadata/refresh', { method: 'POST' });
+    },
+
     async getConfig(): Promise<AppConfig> {
         return request<AppConfig>('/config');
     },

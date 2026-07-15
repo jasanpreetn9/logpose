@@ -197,6 +197,7 @@ onepace-library/
 | `GET` | `/api/activity` | Recent activity events |
 | `GET` | `/api/history` | Import history |
 | `GET` | `/api/events` | SSE stream of live events |
+| `POST` | `/api/metadata/refresh` | Re-fetch metadata from source and regenerate stale NFOs |
 | `GET` | `/api/config` | Current config |
 | `POST` | `/api/config` | Update config at runtime |
 

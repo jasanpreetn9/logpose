@@ -44,6 +44,8 @@ func RegisterRoutes(
 		api.Get("/activity", HandleGetActivity(acts))
 		api.Get("/history", HandleGetHistory(acts))
 
+		api.Post("/metadata/refresh", HandleRefreshMetadata(meta, cfg, store, acts))
+
 		api.Get("/config", HandleGetConfig(cfg))
 		api.Post("/config", HandleUpdateConfig(cfg, cfgPath, tickerReset))
 

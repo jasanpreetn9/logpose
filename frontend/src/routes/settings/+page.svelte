@@ -2,6 +2,7 @@
 	import { onMount } from 'svelte';
 	import { api } from '$lib/api';
 	import { Button } from '$lib/components/ui/button';
+	import { RefreshCw } from 'lucide-svelte';
 
 	let cfg = $state<AppConfig | null>(null);
 	let qbPassword = $state('');
@@ -10,6 +11,9 @@
 	let loadError = $state<string | null>(null);
 	let saved = $state(false);
 	let fieldErrors = $state<Record<string, string>>({});
+	let refreshingMeta = $state(false);
+	let refreshResult = $state<string | null>(null);
+	let refreshError = $state<string | null>(null);
 
 	onMount(async () => {
 		try {
@@ -32,6 +36,20 @@
 			fieldErrors = result.errors;
 		} else {
 			saved = true;
+		}
+	}
+
+	async function refreshMetadata() {
+		refreshingMeta = true;
+		refreshResult = null;
+		refreshError = null;
+		try {
+			const res = await api.refreshMetadata();
+			refreshResult = `Refreshed — ${res.episodes} episodes, ${res.arcs} arcs, ${res.nfosUpdated} NFOs regenerated.`;
+		} catch (e) {
+			refreshError = e instanceof Error ? e.message : 'Metadata refresh failed';
+		} finally {
+			refreshingMeta = false;
 		}
 	}
 </script>
@@ -85,6 +103,17 @@
 					<input type="text" bind:value={cfg.metadataRefreshInterval} placeholder="e.g. 24h, 30m" class="field" />
 					{#if fieldErrors.metadataRefreshInterval}
 						<p class="text-xs text-red-500">{fieldErrors.metadataRefreshInterval}</p>
+					{/if}
+				</div>
+				<div class="flex items-center gap-4 pt-1">
+					<Button type="button" variant="outline" size="sm" onclick={refreshMetadata} disabled={refreshingMeta}>
+						<RefreshCw class="mr-2 h-4 w-4 {refreshingMeta ? 'animate-spin' : ''}" />
+						{refreshingMeta ? 'Refreshing…' : 'Refresh Now'}
+					</Button>
+					{#if refreshResult}
+						<p class="text-sm text-green-500">{refreshResult}</p>
+					{:else if refreshError}
+						<p class="text-sm text-red-500">{refreshError}</p>
 					{/if}
 				</div>
 			</section>
