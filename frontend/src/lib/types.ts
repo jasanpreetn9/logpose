@@ -17,6 +17,12 @@ type EpisodeVersion = {
     status: "imported" | "missing" | "upgradable" | "queued";
 }
 
+type RenamePreviewItem = {
+    folder: string;
+    from: string;
+    to: string;
+}
+
 type UnifiedArc = {
     arc: number;
     title: string;

@@ -8,6 +8,7 @@
 	import { Button } from '$lib/components/ui/button';
 	import { ScrollArea } from '$lib/components/ui/scroll-area';
 	import { Badge } from '$lib/components/ui/badge';
+	import RenamePreviewModal from '$lib/components/RenamePreviewModal.svelte';
 
 	import { arcs, sidebarOpen, activity, historyEvents } from '$lib/stores';
 	import { navigationItems } from '$lib';
@@ -71,16 +72,38 @@
 		theme.update((t) => (t === 'light' ? 'dark' : t === 'dark' ? 'system' : 'light'));
 	}
 
+	let renameModalOpen = $state(false);
+	let renamePreview = $state<RenamePreviewItem[]>([]);
+	let renamePreviewTotal = $state(0);
+	let loadingRenamePreview = $state(false);
+
 	async function handleRenameFiles() {
-		renamingFiles = true;
+		loadingRenamePreview = true;
 		scanError = null;
 		scanMessage = null;
+		try {
+			const preview = await api.previewRename();
+			renamePreview = preview.renames;
+			renamePreviewTotal = preview.total;
+			renameModalOpen = true;
+		} catch (e) {
+			scanError = e instanceof Error ? e.message : 'Rename preview failed';
+		} finally {
+			loadingRenamePreview = false;
+		}
+	}
+
+	async function confirmRename() {
+		renamingFiles = true;
+		scanError = null;
 		try {
 			const result = await api.renameFiles();
 			arcs.set(await api.getAllEpisodes());
 			scanMessage = `Renamed ${result.renamed} of ${result.total} files.`;
+			renameModalOpen = false;
 		} catch (e) {
 			scanError = e instanceof Error ? e.message : 'Rename failed';
+			renameModalOpen = false;
 		} finally {
 			renamingFiles = false;
 		}
@@ -252,10 +275,10 @@
 					<Button
 						variant="outline"
 						size="sm"
-						disabled={renamingFiles}
+						disabled={loadingRenamePreview || renamingFiles}
 						onclick={handleRenameFiles}
 					>
-						{renamingFiles ? 'Renaming…' : 'Rename Files'}
+						{loadingRenamePreview ? 'Checking…' : 'Rename Files'}
 					</Button>
 					<Button
 						variant="outline"
@@ -288,5 +311,14 @@
 		<main class="flex-1 overflow-auto p-4">
 			{@render children()}
 		</main>
+
+		<RenamePreviewModal
+			open={renameModalOpen}
+			onOpenChange={(o) => (renameModalOpen = o)}
+			renames={renamePreview}
+			total={renamePreviewTotal}
+			renaming={renamingFiles}
+			onConfirm={confirmRename}
+		/>
 	</div>
 </div>

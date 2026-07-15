@@ -149,6 +149,10 @@ export const api = {
         return request<ActivityEvent[]>('/history');
     },
 
+    async previewRename(): Promise<{ total: number; renames: RenamePreviewItem[] }> {
+        return request('/library/rename/preview');
+    },
+
     async renameFiles(): Promise<{ renamed: number; total: number }> {
         return request('/library/rename', { method: 'POST' });
     },
