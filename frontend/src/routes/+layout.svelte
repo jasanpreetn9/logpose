@@ -21,7 +21,9 @@
 	let scanningLibrary = $state(false);
 	let scanningDownloads = $state(false);
 	let refreshingMetadata = $state(false);
+	let renamingFiles = $state(false);
 	let scanError = $state<string | null>(null);
+	let scanMessage = $state<string | null>(null);
 	let appVersion = $state<string | null>(null);
 
 	let stopSSE: (() => void) | null = null;
@@ -67,6 +69,21 @@
 
 	function cycleTheme() {
 		theme.update((t) => (t === 'light' ? 'dark' : t === 'dark' ? 'system' : 'light'));
+	}
+
+	async function handleRenameFiles() {
+		renamingFiles = true;
+		scanError = null;
+		scanMessage = null;
+		try {
+			const result = await api.renameFiles();
+			arcs.set(await api.getAllEpisodes());
+			scanMessage = `Renamed ${result.renamed} of ${result.total} files.`;
+		} catch (e) {
+			scanError = e instanceof Error ? e.message : 'Rename failed';
+		} finally {
+			renamingFiles = false;
+		}
 	}
 
 	async function handleRefreshMetadata() {
@@ -235,6 +252,14 @@
 					<Button
 						variant="outline"
 						size="sm"
+						disabled={renamingFiles}
+						onclick={handleRenameFiles}
+					>
+						{renamingFiles ? 'Renaming…' : 'Rename Files'}
+					</Button>
+					<Button
+						variant="outline"
+						size="sm"
 						disabled={refreshingMetadata}
 						onclick={handleRefreshMetadata}
 					>
@@ -254,6 +279,8 @@
 				</div>
 				{#if scanError}
 					<p class="text-xs text-red-500">{scanError}</p>
+				{:else if scanMessage}
+					<p class="text-xs text-muted-foreground">{scanMessage}</p>
 				{/if}
 			</div>
 		</header>

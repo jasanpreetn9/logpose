@@ -32,6 +32,7 @@ func RegisterRoutes(
 
 		api.Post("/scan/library", HandleScanLibrary(meta, cfg, store, acts))
 		api.Post("/scan/downloads", HandleScanDownloads(meta, cfg, store, acts))
+		api.Post("/library/rename", HandleRenameFiles(meta, cfg, store, acts))
 
 		api.Get("/episodes/all", HandleGetAllEpisodes(meta, store, tracker))
 		api.Get("/episodes/{crc}", HandleGetEpisode(meta))

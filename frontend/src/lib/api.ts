@@ -149,6 +149,10 @@ export const api = {
         return request<ActivityEvent[]>('/history');
     },
 
+    async renameFiles(): Promise<{ renamed: number; total: number }> {
+        return request('/library/rename', { method: 'POST' });
+    },
+
     async getVersion(): Promise<string> {
         const res = await request<{ version: string }>('/version');
         return res.version;
