@@ -20,6 +20,7 @@
 
 	let scanningLibrary = $state(false);
 	let scanningDownloads = $state(false);
+	let refreshingMetadata = $state(false);
 	let scanError = $state<string | null>(null);
 	let appVersion = $state<string | null>(null);
 
@@ -66,6 +67,19 @@
 
 	function cycleTheme() {
 		theme.update((t) => (t === 'light' ? 'dark' : t === 'dark' ? 'system' : 'light'));
+	}
+
+	async function handleRefreshMetadata() {
+		refreshingMetadata = true;
+		scanError = null;
+		try {
+			await api.refreshMetadata();
+			arcs.set(await api.getAllEpisodes());
+		} catch (e) {
+			scanError = e instanceof Error ? e.message : 'Refresh failed';
+		} finally {
+			refreshingMetadata = false;
+		}
 	}
 
 	async function handleScanDownloads() {
@@ -217,6 +231,14 @@
 						{:else}
 							<Monitor class="h-4 w-4" />
 						{/if}
+					</Button>
+					<Button
+						variant="outline"
+						size="sm"
+						disabled={refreshingMetadata}
+						onclick={handleRefreshMetadata}
+					>
+						{refreshingMetadata ? 'Refreshing…' : 'Refresh Metadata'}
 					</Button>
 					<Button
 						variant="outline"
