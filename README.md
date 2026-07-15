@@ -198,6 +198,7 @@ onepace-library/
 | `GET` | `/api/history` | Import history |
 | `GET` | `/api/events` | SSE stream of live events |
 | `POST` | `/api/metadata/refresh` | Re-fetch metadata from source and regenerate stale NFOs |
+| `POST` | `/api/qbittorrent/test` | Test qBittorrent connection with given or saved credentials |
 | `GET` | `/api/config` | Current config |
 | `POST` | `/api/config` | Update config at runtime |
 

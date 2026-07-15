@@ -172,16 +172,32 @@ export const api = {
         return request<AppConfig>('/config');
     },
 
-    async updateConfig(patch: Partial<AppConfig> & { qbPassword?: string }): Promise<{ errors?: Record<string, string> }> {
+    async updateConfig(patch: Partial<AppConfig> & { qbPassword?: string }): Promise<{ errors?: Record<string, string>; error?: string }> {
         const res = await fetch(`${BASE_URL}/config`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(patch)
         });
-        const body = await res.json();
+        // The backend returns JSON for validation errors but plain text for
+        // other failures — never assume the body parses.
+        const text = await res.text();
+        let body: { errors?: Record<string, string> } | null = null;
+        try {
+            body = JSON.parse(text);
+        } catch {
+            // non-JSON response
+        }
         if (!res.ok) {
-            return body as { errors: Record<string, string> };
+            if (body?.errors) return { errors: body.errors };
+            return { error: text || `Save failed (${res.status})` };
         }
         return {};
+    },
+
+    async testQBittorrent(params: { host?: string; username?: string; password?: string }): Promise<{ ok: boolean; version?: string; error?: string }> {
+        return request('/qbittorrent/test', {
+            method: 'POST',
+            body: JSON.stringify(params)
+        });
     }
 };
