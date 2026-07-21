@@ -48,6 +48,10 @@ func RegisterRoutes(
 		api.Get("/queue", HandleGetQueue(meta, qb, cfg.QBittorrent.Enabled))
 		api.Delete("/queue/{hash}", HandleDeleteQueueItem(qb, cfg.QBittorrent.Enabled))
 
+		api.Get("/import/unmatched", HandleGetUnmatched(meta, cfg))
+		api.Get("/import/manual/preview", HandleManualImportPreview(meta, cfg))
+		api.Post("/import/manual", HandleManualImport(meta, cfg, store, acts))
+
 		api.Get("/activity", HandleGetActivity(acts))
 		api.Get("/history", HandleGetHistory(acts))
 

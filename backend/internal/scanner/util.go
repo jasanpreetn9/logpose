@@ -2,6 +2,8 @@ package scanner
 
 import (
 	"errors"
+	"fmt"
+	"hash/crc32"
 	"io"
 	"os"
 	"path/filepath"
@@ -27,6 +29,24 @@ func sanitizeFilename(s string) string {
 
 // MoveFile is the exported entry point used by the poller.
 func MoveFile(src, dst, libraryRoot string) error { return moveFile(src, dst, libraryRoot) }
+
+// ComputeCRC32 hashes a file's content and returns its checksum as an
+// uppercase 8-character hex string, matching the format used in filenames
+// and metadata (e.g. "CA3F14A8"). Used by manual import, where the filename
+// can't be trusted to carry the correct CRC.
+func ComputeCRC32(path string) (string, error) {
+	f, err := os.Open(path)
+	if err != nil {
+		return "", err
+	}
+	defer f.Close()
+
+	h := crc32.NewIEEE()
+	if _, err := io.Copy(h, f); err != nil {
+		return "", err
+	}
+	return fmt.Sprintf("%08X", h.Sum32()), nil
+}
 
 // moveFile moves src to dst using a .tmp staging directory inside libraryRoot.
 // It handles cross-device moves (e.g. downloads on local disk, library on NAS)
