@@ -24,8 +24,19 @@ type Config struct {
 
 	MetadataRefreshInterval string `yaml:"metadataRefreshInterval"`
 
-	Metadata    MetadataConfig    `yaml:"metadata"`
-	QBittorrent QBittorrentConfig `yaml:"qbittorrent"`
+	// AutoDownload queues monitored missing episodes automatically after
+	// each metadata refresh.
+	AutoDownload bool `yaml:"autoDownload"`
+
+	Metadata      MetadataConfig      `yaml:"metadata"`
+	QBittorrent   QBittorrentConfig   `yaml:"qbittorrent"`
+	Notifications NotificationsConfig `yaml:"notifications"`
+}
+
+type NotificationsConfig struct {
+	DiscordWebhookURL string `yaml:"discordWebhookUrl"`
+	JellyfinURL       string `yaml:"jellyfinUrl"`
+	JellyfinAPIKey    string `yaml:"jellyfinApiKey"`
 }
 
 type QBittorrentConfig struct {
@@ -88,6 +99,16 @@ func (cfg *Config) Validate() error {
 	if cfg.MetadataRefreshInterval != "" {
 		if _, err := time.ParseDuration(cfg.MetadataRefreshInterval); err != nil {
 			errs["metadataRefreshInterval"] = "must be a valid Go duration (e.g. 6h, 30m)"
+		}
+	}
+	if cfg.Notifications.DiscordWebhookURL != "" {
+		if _, err := url.ParseRequestURI(cfg.Notifications.DiscordWebhookURL); err != nil {
+			errs["discordWebhookUrl"] = "must be a valid URL"
+		}
+	}
+	if cfg.Notifications.JellyfinURL != "" {
+		if _, err := url.ParseRequestURI(cfg.Notifications.JellyfinURL); err != nil {
+			errs["jellyfinUrl"] = "must be a valid URL"
 		}
 	}
 

@@ -8,15 +8,18 @@ import (
 
 	"onepace-library/internal/activity"
 	"onepace-library/internal/config"
+	"onepace-library/internal/downloads"
+	"onepace-library/internal/grabber"
 	"onepace-library/internal/library"
 	"onepace-library/internal/metadata"
 	"onepace-library/internal/nfo"
+	"onepace-library/internal/qbittorrent"
 )
 
 // HandleRefreshMetadata re-fetches episode and arc metadata from the source
 // URLs and regenerates NFOs for any episodes whose metadata changed.
 // POST /api/metadata/refresh
-func HandleRefreshMetadata(meta *metadata.Client, cfg *config.Config, store *library.Store, acts *activity.Store) http.HandlerFunc {
+func HandleRefreshMetadata(meta *metadata.Client, cfg *config.Config, store *library.Store, acts *activity.Store, qb *qbittorrent.Client, tracker *downloads.Tracker) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		// Pick up any URL changes saved in Settings since startup.
 		meta.EpisodesURL = cfg.Metadata.EpisodesURL
@@ -37,12 +40,18 @@ func HandleRefreshMetadata(meta *metadata.Client, cfg *config.Config, store *lib
 			true,
 		)
 
+		grabbed := 0
+		if cfg.AutoDownload && cfg.QBittorrent.Enabled {
+			grabbed = grabber.GrabWanted(meta, store, qb, acts, tracker)
+		}
+
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(map[string]any{
 			"status":      "ok",
 			"episodes":    episodes,
 			"arcs":        arcs,
 			"nfosUpdated": nfosUpdated,
+			"grabbed":     grabbed,
 			"lastUpdated": meta.LastUpdated(),
 		})
 	}

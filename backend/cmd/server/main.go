@@ -17,6 +17,7 @@ import (
 	"onepace-library/internal/config"
 	"onepace-library/internal/db"
 	"onepace-library/internal/downloads"
+	"onepace-library/internal/grabber"
 	"onepace-library/internal/library"
 	"onepace-library/internal/metadata"
 	"onepace-library/internal/poller"
@@ -106,6 +107,11 @@ func main() {
 				}
 				log.Println("Metadata refreshed.")
 				api.RegenerateStaleNFOs(metaClient, store)
+				if cfg.AutoDownload && cfg.QBittorrent.Enabled {
+					if n := grabber.GrabWanted(metaClient, store, qb, acts, tracker); n > 0 {
+						log.Printf("Auto-grabbed %d wanted episode(s).", n)
+					}
+				}
 			}
 		}
 	}()
