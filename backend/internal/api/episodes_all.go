@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"sort"
 
+	"onepace-library/internal/downloads"
 	"onepace-library/internal/library"
 	"onepace-library/internal/metadata"
 )
@@ -50,7 +51,7 @@ type UnifiedArc struct {
 	Episodes []UnifiedEpisode `json:"episodes"`
 }
 
-func HandleGetAllEpisodes(meta *metadata.Client, store *library.Store) http.HandlerFunc {
+func HandleGetAllEpisodes(meta *metadata.Client, store *library.Store, tracker *downloads.Tracker) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 
 		type arcBuild struct {
@@ -126,6 +127,11 @@ func HandleGetAllEpisodes(meta *metadata.Client, store *library.Store) http.Hand
 					}
 				}
 
+				// A version still sitting in qBittorrent shows as queued.
+				if (version.Status == "missing" || version.Status == "upgradable") && tracker.IsActive(crc) {
+					version.Status = "queued"
+				}
+
 				existing.Versions = append(existing.Versions, version)
 			}
 		})
@@ -137,7 +143,7 @@ func HandleGetAllEpisodes(meta *metadata.Client, store *library.Store) http.Hand
 			for i := range arc.Episodes {
 				ep := &arc.Episodes[i]
 				for _, v := range ep.Versions {
-					if v.Status != "missing" {
+					if v.Status != "missing" && v.Status != "queued" {
 						ep.Downloaded = true
 						break
 					}

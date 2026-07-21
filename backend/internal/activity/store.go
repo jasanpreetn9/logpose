@@ -9,17 +9,19 @@ import (
 	"time"
 
 	"onepace-library/internal/db"
+	"onepace-library/internal/notify"
 	"onepace-library/internal/sse"
 )
 
 const maxEvents = 500
 
 type Store struct {
-	mu     sync.RWMutex
-	events []Event
-	seq    atomic.Int64
-	db     *db.DB
-	hub    *sse.Hub // may be nil
+	mu       sync.RWMutex
+	events   []Event
+	seq      atomic.Int64
+	db       *db.DB
+	hub      *sse.Hub          // may be nil
+	notifier *notify.Notifier // may be nil
 }
 
 func NewStore(d *db.DB, hub *sse.Hub) *Store {
@@ -28,6 +30,12 @@ func NewStore(d *db.DB, hub *sse.Hub) *Store {
 		db:     d,
 		hub:    hub,
 	}
+}
+
+// SetNotifier wires in external notifications (Discord/Jellyfin). Optional —
+// events are only dispatched to it once set.
+func (s *Store) SetNotifier(n *notify.Notifier) {
+	s.notifier = n
 }
 
 // LoadFromDB pre-populates the in-memory slice from the DB.
@@ -77,6 +85,18 @@ func (s *Store) Add(t EventType, message, details string, success bool) {
 	if s.hub != nil {
 		if b, err := json.Marshal(ev); err == nil {
 			s.hub.Broadcast(string(b))
+		}
+	}
+
+	// Dispatch external notifications (best-effort, never blocks the caller).
+	if s.notifier != nil {
+		switch t {
+		case EventImport:
+			if success {
+				go s.notifier.NotifyImport(message, details)
+			}
+		case EventDownloadFailed:
+			go s.notifier.NotifyFailure(message, details)
 		}
 	}
 }

@@ -4,10 +4,22 @@
 	import { page } from '$app/state';
 	import { onMount, onDestroy } from 'svelte';
 	import '$lib/app.css';
-	import { Library, Activity, Clock, Settings, Menu, X, Sun, Moon, Monitor } from 'lucide-svelte';
+	import {
+		Library,
+		Activity,
+		Clock,
+		Settings,
+		Menu,
+		X,
+		Sun,
+		Moon,
+		Monitor,
+		AlertTriangle
+	} from 'lucide-svelte';
 	import { Button } from '$lib/components/ui/button';
 	import { ScrollArea } from '$lib/components/ui/scroll-area';
 	import { Badge } from '$lib/components/ui/badge';
+	import RenamePreviewModal from '$lib/components/RenamePreviewModal.svelte';
 
 	import { arcs, sidebarOpen, activity, historyEvents } from '$lib/stores';
 	import { navigationItems } from '$lib';
@@ -20,9 +32,32 @@
 
 	let scanningLibrary = $state(false);
 	let scanningDownloads = $state(false);
+	let refreshingMetadata = $state(false);
+	let renamingFiles = $state(false);
 	let scanError = $state<string | null>(null);
+	let scanMessage = $state<string | null>(null);
+	let appVersion = $state<string | null>(null);
+
+	let healthChecks = $state<HealthCheck[]>([]);
+	let dismissedHealthIds = $state<Set<string>>(new Set());
+	const visibleHealthChecks = $derived(
+		healthChecks.filter((c) => !dismissedHealthIds.has(c.id))
+	);
 
 	let stopSSE: (() => void) | null = null;
+	let healthTimer: ReturnType<typeof setInterval> | null = null;
+
+	async function loadHealth() {
+		try {
+			const res = await api.getHealth();
+			healthChecks = res.checks;
+			if (res.checks.length === 0) {
+				dismissedHealthIds = new Set();
+			}
+		} catch {
+			// Health checks are best-effort — don't surface fetch failures as a check.
+		}
+	}
 
 	onMount(async () => {
 		const [list, acts, hist] = await Promise.all([
@@ -34,6 +69,13 @@
 		activity.set(acts);
 		historyEvents.set(hist);
 
+		api.getVersion()
+			.then((v) => (appVersion = v))
+			.catch(() => (appVersion = null));
+
+		loadHealth();
+		healthTimer = setInterval(loadHealth, 60000);
+
 		stopSSE = startSSE((ev) => {
 			activity.update((l) => [ev, ...l]);
 			if (ev.type === 'import') {
@@ -44,7 +86,12 @@
 
 	onDestroy(() => {
 		stopSSE?.();
+		if (healthTimer) clearInterval(healthTimer);
 	});
+
+	function dismissHealthChecks() {
+		dismissedHealthIds = new Set(healthChecks.map((c) => c.id));
+	}
 
 	async function handleScanLibrary() {
 		scanningLibrary = true;
@@ -61,6 +108,61 @@
 
 	function cycleTheme() {
 		theme.update((t) => (t === 'light' ? 'dark' : t === 'dark' ? 'system' : 'light'));
+	}
+
+	let renameModalOpen = $state(false);
+	let renamePreview = $state<RenamePreviewItem[]>([]);
+	let renamePreviewTotal = $state(0);
+	let loadingRenamePreview = $state(false);
+
+	async function handleRenameFiles() {
+		loadingRenamePreview = true;
+		scanError = null;
+		scanMessage = null;
+		try {
+			const preview = await api.previewRename();
+			renamePreview = preview.renames;
+			renamePreviewTotal = preview.total;
+			renameModalOpen = true;
+		} catch (e) {
+			scanError = e instanceof Error ? e.message : 'Rename preview failed';
+		} finally {
+			loadingRenamePreview = false;
+		}
+	}
+
+	async function confirmRename() {
+		renamingFiles = true;
+		scanError = null;
+		try {
+			const result = await api.renameFiles();
+			arcs.set(await api.getAllEpisodes());
+			scanMessage = `Renamed ${result.renamed} of ${result.total} files.`;
+			renameModalOpen = false;
+		} catch (e) {
+			scanError = e instanceof Error ? e.message : 'Rename failed';
+			renameModalOpen = false;
+		} finally {
+			renamingFiles = false;
+		}
+	}
+
+	async function handleRefreshMetadata() {
+		refreshingMetadata = true;
+		scanError = null;
+		scanMessage = null;
+		try {
+			const result = await api.refreshMetadata();
+			arcs.set(await api.getAllEpisodes());
+			scanMessage =
+				result.grabbed > 0
+					? `Metadata refreshed — ${result.grabbed} episode(s) auto-grabbed.`
+					: 'Metadata refreshed.';
+		} catch (e) {
+			scanError = e instanceof Error ? e.message : 'Refresh failed';
+		} finally {
+			refreshingMetadata = false;
+		}
 	}
 
 	async function handleScanDownloads() {
@@ -180,6 +282,13 @@
 					</ScrollArea>
 				</div>
 			{/if}
+
+			<!-- Version -->
+			<div class="mt-auto border-t border-sidebar-border px-4 py-2">
+				<span class="text-xs text-muted-foreground">
+					Logpose {appVersion ?? '…'}
+				</span>
+			</div>
 		</div>
 	</aside>
 
@@ -209,6 +318,22 @@
 					<Button
 						variant="outline"
 						size="sm"
+						disabled={loadingRenamePreview || renamingFiles}
+						onclick={handleRenameFiles}
+					>
+						{loadingRenamePreview ? 'Checking…' : 'Rename Files'}
+					</Button>
+					<Button
+						variant="outline"
+						size="sm"
+						disabled={refreshingMetadata}
+						onclick={handleRefreshMetadata}
+					>
+						{refreshingMetadata ? 'Refreshing…' : 'Refresh Metadata'}
+					</Button>
+					<Button
+						variant="outline"
+						size="sm"
 						disabled={scanningDownloads}
 						onclick={handleScanDownloads}
 					>
@@ -220,12 +345,52 @@
 				</div>
 				{#if scanError}
 					<p class="text-xs text-red-500">{scanError}</p>
+				{:else if scanMessage}
+					<p class="text-xs text-muted-foreground">{scanMessage}</p>
 				{/if}
 			</div>
 		</header>
 
+		{#if visibleHealthChecks.length > 0}
+			<div class="border-b border-border">
+				{#each visibleHealthChecks as check (check.id)}
+					<div
+						class={cn(
+							'flex items-center justify-between gap-4 px-4 py-2 text-sm lg:px-6',
+							check.level === 'error'
+								? 'bg-destructive/15 text-destructive'
+								: 'bg-yellow-500/15 text-yellow-600 dark:text-yellow-400'
+						)}
+					>
+						<div class="flex items-center gap-2">
+							<AlertTriangle class="h-4 w-4 shrink-0" />
+							<span>{check.message}</span>
+						</div>
+					</div>
+				{/each}
+				<div class="flex justify-end px-4 py-1 lg:px-6">
+					<button
+						type="button"
+						class="text-xs text-muted-foreground hover:text-foreground"
+						onclick={dismissHealthChecks}
+					>
+						Dismiss
+					</button>
+				</div>
+			</div>
+		{/if}
+
 		<main class="flex-1 overflow-auto p-4">
 			{@render children()}
 		</main>
+
+		<RenamePreviewModal
+			open={renameModalOpen}
+			onOpenChange={(o) => (renameModalOpen = o)}
+			renames={renamePreview}
+			total={renamePreviewTotal}
+			renaming={renamingFiles}
+			onConfirm={confirmRename}
+		/>
 	</div>
 </div>

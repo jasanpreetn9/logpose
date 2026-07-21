@@ -16,8 +16,11 @@ import (
 	"onepace-library/internal/api"
 	"onepace-library/internal/config"
 	"onepace-library/internal/db"
+	"onepace-library/internal/downloads"
+	"onepace-library/internal/grabber"
 	"onepace-library/internal/library"
 	"onepace-library/internal/metadata"
+	"onepace-library/internal/notify"
 	"onepace-library/internal/poller"
 	"onepace-library/internal/qbittorrent"
 	"onepace-library/internal/scanner"
@@ -71,6 +74,8 @@ func main() {
 		}
 	}
 
+	tracker := downloads.NewTracker()
+
 	tickerReset := make(chan time.Duration, 1)
 
 	r := chi.NewRouter()
@@ -79,10 +84,12 @@ func main() {
 	r.Use(middleware.Timeout(30 * time.Second))
 	r.Use(api.CORS)
 
-	api.RegisterRoutes(r, metaClient, cfg, cfgPath, store, qb, acts, hub, tickerReset)
+	api.RegisterRoutes(r, metaClient, cfg, cfgPath, store, qb, acts, hub, tracker, tickerReset)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
+
+	acts.SetNotifier(notify.New(ctx, cfg))
 
 	// Configurable metadata refresh ticker.
 	go func() {
@@ -103,13 +110,18 @@ func main() {
 				}
 				log.Println("Metadata refreshed.")
 				api.RegenerateStaleNFOs(metaClient, store)
+				if cfg.AutoDownload && cfg.QBittorrent.Enabled {
+					if n := grabber.GrabWanted(metaClient, store, qb, acts, tracker); n > 0 {
+						log.Printf("Auto-grabbed %d wanted episode(s).", n)
+					}
+				}
 			}
 		}
 	}()
 
 	// qBittorrent completion poller.
 	if cfg.QBittorrent.Enabled {
-		go poller.Start(ctx, qb, metaClient, store, acts, cfg.LibraryPath)
+		go poller.Start(ctx, qb, metaClient, store, acts, tracker, cfg.LibraryPath, cfg.DownloadPath)
 	}
 
 	// fsnotify watcher on downloads directory.

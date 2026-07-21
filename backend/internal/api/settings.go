@@ -21,6 +21,11 @@ type ConfigResponse struct {
 	QBEnabled  bool   `json:"qbEnabled"`
 	QBHost     string `json:"qbHost"`
 	QBUsername string `json:"qbUsername"`
+
+	AutoDownload bool `json:"autoDownload"`
+
+	DiscordWebhookURL string `json:"discordWebhookUrl"`
+	JellyfinURL       string `json:"jellyfinUrl"`
 }
 
 type ConfigUpdateRequest struct {
@@ -37,6 +42,12 @@ type ConfigUpdateRequest struct {
 	QBHost     string `json:"qbHost"`
 	QBUsername string `json:"qbUsername"`
 	QBPassword string `json:"qbPassword"`
+
+	AutoDownload bool `json:"autoDownload"`
+
+	DiscordWebhookURL *string `json:"discordWebhookUrl"`
+	JellyfinURL       *string `json:"jellyfinUrl"`
+	JellyfinAPIKey    string  `json:"jellyfinApiKey"`
 }
 
 func HandleGetConfig(cfg *config.Config) http.HandlerFunc {
@@ -52,6 +63,9 @@ func HandleGetConfig(cfg *config.Config) http.HandlerFunc {
 			QBEnabled:               cfg.QBittorrent.Enabled,
 			QBHost:                  cfg.QBittorrent.Host,
 			QBUsername:              cfg.QBittorrent.Username,
+			AutoDownload:            cfg.AutoDownload,
+			DiscordWebhookURL:       cfg.Notifications.DiscordWebhookURL,
+			JellyfinURL:             cfg.Notifications.JellyfinURL,
 		}
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(resp)
@@ -98,6 +112,16 @@ func HandleUpdateConfig(cfg *config.Config, cfgPath string, tickerReset chan<- t
 		}
 		if req.QBPassword != "" {
 			cfg.QBittorrent.Password = req.QBPassword
+		}
+		cfg.AutoDownload = req.AutoDownload
+		if req.DiscordWebhookURL != nil {
+			cfg.Notifications.DiscordWebhookURL = *req.DiscordWebhookURL
+		}
+		if req.JellyfinURL != nil {
+			cfg.Notifications.JellyfinURL = *req.JellyfinURL
+		}
+		if req.JellyfinAPIKey != "" {
+			cfg.Notifications.JellyfinAPIKey = req.JellyfinAPIKey
 		}
 
 		// Validate before saving.

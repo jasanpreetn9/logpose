@@ -5,14 +5,20 @@
 	import { Badge } from '$lib/components/ui/badge';
 	import { Download, ArrowUpFromLine } from 'lucide-svelte';
 
-	function epStatus(ep: UnifiedEpisode): 'missing' | 'upgradable' {
+	function epStatus(ep: UnifiedEpisode): 'missing' | 'upgradable' | 'queued' {
+		if (ep.versions.some((v) => v.status === 'queued')) return 'queued';
 		return ep.versions.some((v) => v.status === 'upgradable') ? 'upgradable' : 'missing';
 	}
 
 	const wanted = $derived(
 		$arcs.flatMap((arc) =>
 			arc.episodes
-				.filter((ep) => ep.monitored && (!ep.downloaded || ep.versions.some((v) => v.status === 'upgradable')))
+				.filter(
+					(ep) =>
+						ep.monitored &&
+						(!ep.downloaded ||
+							ep.versions.some((v) => v.status === 'upgradable' || v.status === 'queued'))
+				)
 				.map((ep) => ({ arc, ep, status: epStatus(ep) }))
 		)
 	);
@@ -25,6 +31,7 @@
 		errors = new Map([...errors].filter(([k]) => k !== crc32));
 		try {
 			await api.downloadEpisode(crc32);
+			arcs.set(await api.getAllEpisodes());
 		} catch (e) {
 			errors = new Map([...errors, [crc32, e instanceof Error ? e.message : 'Download failed']]);
 		} finally {
@@ -54,12 +61,19 @@
 							<span class="text-sm font-medium">{ep.title}</span>
 							{#if status === 'upgradable'}
 								<Badge variant="outline" class="text-xs border-yellow-500 text-yellow-600">Upgrade Available</Badge>
+							{:else if status === 'queued'}
+								<Badge variant="outline" class="text-xs border-blue-500 text-blue-500">Queued</Badge>
 							{/if}
 						</div>
 						<p class="text-xs text-muted-foreground">Episode {ep.episode} · {arc.title}</p>
 					</div>
 					<div class="flex flex-col items-end gap-1">
-						{#if target}
+						{#if status === 'queued'}
+							<Button size="sm" variant="outline" disabled>
+								<Download class="mr-2 h-4 w-4" />
+								Queued
+							</Button>
+						{:else if target}
 							<Button
 								size="sm"
 								variant={status === 'upgradable' ? 'default' : 'outline'}

@@ -12,9 +12,10 @@
 	let { episode, onToggleMonitor = () => {}, onDownload = async () => {}, onSelect = () => {} }: Props =
 		$props();
 
-	function getStatus(ep: UnifiedEpisode): 'imported' | 'missing' | 'upgradable' | 'none' {
+	function getStatus(ep: UnifiedEpisode): 'imported' | 'missing' | 'upgradable' | 'queued' | 'none' {
 		const imported = ep.versions.filter((v) => v.status === 'imported');
 		const upgradable = ep.versions.filter((v) => v.status === 'upgradable');
+		if (ep.versions.some((v) => v.status === 'queued')) return 'queued';
 		if (imported.length > 0 && upgradable.length > 0) return 'upgradable';
 		if (imported.length > 0) return 'imported';
 		if (ep.versions.length === 0) return 'none';
@@ -24,19 +25,13 @@
 	const downloadStatus = $derived(getStatus(episode));
 
 	let downloading = $state(false);
-	let queued = $state(false);
 	let downloadError = $state<string | null>(null);
-	let queuedTimer: ReturnType<typeof setTimeout> | null = null;
 
 	async function handleDownload() {
 		downloading = true;
 		downloadError = null;
-		queued = false;
 		try {
 			await onDownload();
-			queued = true;
-			if (queuedTimer) clearTimeout(queuedTimer);
-			queuedTimer = setTimeout(() => (queued = false), 4000);
 		} catch (e) {
 			downloadError = e instanceof Error ? e.message : 'Download failed';
 		} finally {
@@ -87,7 +82,7 @@
 				{episode.monitored ? 'Monitored' : 'Unmonitored'}
 			</Button>
 
-			{#if queued}
+			{#if downloadStatus === 'queued'}
 				<Button size="sm" variant="secondary" disabled>
 					<CheckCheck class="mr-2 h-4 w-4 text-green-500" />
 					Queued

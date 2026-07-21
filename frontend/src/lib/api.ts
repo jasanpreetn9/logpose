@@ -100,7 +100,7 @@ function mapArc(a: RawArc): UnifiedArc {
         episodesAdapted: a.episodes_adapted || null,
         fillerEpisodes: a.filler_episodes || null,
         timeSavedMins: a.time_saved_mins || null,
-        timeSavedPercent: a.time_saved_percent || null,
+        timeSavedPercent: a.time_saved_percent ? a.time_saved_percent.replace(/%$/, '') : null,
 
         episodeCount: a.episode_count,
         episodesDownloaded: a.episode_downloaded,
@@ -149,6 +149,62 @@ export const api = {
         return request<ActivityEvent[]>('/history');
     },
 
+    async getQueue(): Promise<QueueItem[]> {
+        return request<QueueItem[]>('/queue');
+    },
+
+    async removeFromQueue(hash: string): Promise<void> {
+        await request(`/queue/${hash}`, { method: 'DELETE' });
+    },
+
+    async getUnmatchedFiles(): Promise<UnmatchedFile[]> {
+        return request<UnmatchedFile[]>('/import/unmatched');
+    },
+
+    async previewManualImport(params: {
+        path: string;
+        arc: number;
+        episode: number;
+        version: string;
+    }): Promise<ManualImportPreview> {
+        const q = new URLSearchParams({
+            path: params.path,
+            arc: String(params.arc),
+            episode: String(params.episode),
+            version: params.version
+        });
+        return request<ManualImportPreview>(`/import/manual/preview?${q}`);
+    },
+
+    async confirmManualImport(params: {
+        path: string;
+        arc: number;
+        episode: number;
+        version: string;
+    }): Promise<{ status: string; title: string; path: string }> {
+        return request('/import/manual', {
+            method: 'POST',
+            body: JSON.stringify(params)
+        });
+    },
+
+    async previewRename(): Promise<{ total: number; renames: RenamePreviewItem[] }> {
+        return request('/library/rename/preview');
+    },
+
+    async renameFiles(): Promise<{ renamed: number; total: number }> {
+        return request('/library/rename', { method: 'POST' });
+    },
+
+    async getVersion(): Promise<string> {
+        const res = await request<{ version: string }>('/version');
+        return res.version;
+    },
+
+    async getHealth(): Promise<{ ok: boolean; checks: HealthCheck[] }> {
+        return request('/health');
+    },
+
     async monitorArc(arcId: number, monitored: boolean): Promise<void> {
         await request(`/arcs/${arcId}/monitor`, {
             method: 'POST',
@@ -164,7 +220,7 @@ export const api = {
         return request(`/arcs/${arcId}/verify-nfo`, { method: 'POST' });
     },
 
-    async refreshMetadata(): Promise<{ episodes: number; arcs: number; nfosUpdated: number; lastUpdated: string }> {
+    async refreshMetadata(): Promise<{ episodes: number; arcs: number; nfosUpdated: number; grabbed: number; lastUpdated: string }> {
         return request('/metadata/refresh', { method: 'POST' });
     },
 
@@ -172,7 +228,7 @@ export const api = {
         return request<AppConfig>('/config');
     },
 
-    async updateConfig(patch: Partial<AppConfig> & { qbPassword?: string }): Promise<{ errors?: Record<string, string>; error?: string }> {
+    async updateConfig(patch: Partial<AppConfig> & { qbPassword?: string; jellyfinApiKey?: string }): Promise<{ errors?: Record<string, string>; error?: string }> {
         const res = await fetch(`${BASE_URL}/config`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },

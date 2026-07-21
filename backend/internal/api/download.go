@@ -5,6 +5,7 @@ import (
 	"net/http"
 
 	"onepace-library/internal/activity"
+	"onepace-library/internal/downloads"
 	"onepace-library/internal/metadata"
 	"onepace-library/internal/qbittorrent"
 )
@@ -13,7 +14,7 @@ type AddDownloadRequest struct {
 	CRC32 string `json:"crc32"`
 }
 
-func HandleAddToQbit(meta *metadata.Client, qb *qbittorrent.Client, acts *activity.Store, enabled bool) http.HandlerFunc {
+func HandleAddToQbit(meta *metadata.Client, qb *qbittorrent.Client, acts *activity.Store, tracker *downloads.Tracker, enabled bool) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if !enabled {
 			http.Error(w, "qBittorrent is not enabled — configure it in Settings", http.StatusServiceUnavailable)
@@ -32,24 +33,26 @@ func HandleAddToQbit(meta *metadata.Client, qb *qbittorrent.Client, acts *activi
 			return
 		}
 
-		if ep.File.URL == "" {
+		downloadURL := ep.File.DownloadURL()
+		if downloadURL == "" {
 			http.Error(w, "no download URL available", http.StatusInternalServerError)
 			return
 		}
 
-		if err := qb.AddTorrent(ep.File.URL); err != nil {
+		if err := qb.AddTorrent(downloadURL); err != nil {
 			acts.Add(activity.EventDownloadFailed, "Download failed: "+ep.Title, err.Error(), false)
 			http.Error(w, "qBit add failed: "+err.Error(), http.StatusInternalServerError)
 			return
 		}
 
-		acts.Add(activity.EventDownloadQueued, "Download queued: "+ep.Title, ep.File.URL, true)
+		tracker.MarkQueued(req.CRC32)
+		acts.Add(activity.EventDownloadQueued, "Download queued: "+ep.Title, downloadURL, true)
 
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(map[string]string{
 			"status":  "ok",
 			"message": "download added to qBittorrent",
-			"url":     ep.File.URL,
+			"url":     downloadURL,
 		})
 	}
 }

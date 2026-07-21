@@ -10,6 +10,7 @@ import (
 	"github.com/go-chi/chi/v5"
 
 	"onepace-library/internal/activity"
+	"onepace-library/internal/downloads"
 	"onepace-library/internal/library"
 	"onepace-library/internal/metadata"
 	"onepace-library/internal/nfo"
@@ -82,7 +83,7 @@ func HandleMonitorArc(meta *metadata.Client, store *library.Store) http.HandlerF
 
 // HandleDownloadMonitored queues all monitored+missing episodes in the arc to qBittorrent.
 // POST /api/arcs/{arcId}/download-monitored
-func HandleDownloadMonitored(meta *metadata.Client, store *library.Store, qb *qbittorrent.Client, acts *activity.Store, enabled bool) http.HandlerFunc {
+func HandleDownloadMonitored(meta *metadata.Client, store *library.Store, qb *qbittorrent.Client, acts *activity.Store, tracker *downloads.Tracker, enabled bool) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if !enabled {
 			http.Error(w, "qBittorrent is not enabled — configure it in Settings", http.StatusServiceUnavailable)
@@ -111,7 +112,8 @@ func HandleDownloadMonitored(meta *metadata.Client, store *library.Store, qb *qb
 			arcMonitored := arc != nil && arc.Monitored
 
 			for _, epMeta := range metaEps {
-				if epMeta.File.URL == "" {
+				downloadURL := epMeta.File.DownloadURL()
+				if downloadURL == "" {
 					continue
 				}
 
@@ -133,7 +135,7 @@ func HandleDownloadMonitored(meta *metadata.Client, store *library.Store, qb *qb
 				candidates = append(candidates, toQueue{
 					crc32: epMeta.File.CRC32,
 					title: epMeta.Title,
-					url:   epMeta.File.URL,
+					url:   downloadURL,
 				})
 			}
 		})
@@ -145,6 +147,7 @@ func HandleDownloadMonitored(meta *metadata.Client, store *library.Store, qb *qb
 				log.Printf("download-monitored: failed to queue %s: %v", c.crc32, err)
 				continue
 			}
+			tracker.MarkQueued(c.crc32)
 			acts.Add(activity.EventDownloadQueued, "Download queued: "+c.title, c.url, true)
 			queued++
 		}
