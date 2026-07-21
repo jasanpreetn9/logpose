@@ -45,6 +45,9 @@ func RegisterRoutes(
 		api.Post("/arcs/{arcId}/download-monitored", HandleDownloadMonitored(meta, store, qb, acts, tracker, cfg.QBittorrent.Enabled))
 		api.Post("/arcs/{arcId}/verify-nfo", HandleVerifyNFOs(meta, store, acts))
 
+		api.Get("/queue", HandleGetQueue(meta, qb, cfg.QBittorrent.Enabled))
+		api.Delete("/queue/{hash}", HandleDeleteQueueItem(qb, cfg.QBittorrent.Enabled))
+
 		api.Get("/activity", HandleGetActivity(acts))
 		api.Get("/history", HandleGetHistory(acts))
 

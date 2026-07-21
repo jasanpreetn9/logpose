@@ -13,6 +13,10 @@ type TorrentInfo struct {
 	ContentPath string  `json:"content_path"`
 	Hash        string  `json:"hash"`
 	Progress    float64 `json:"progress"`
+	Size        int64   `json:"size"`
+	DLSpeed     int64   `json:"dlspeed"`
+	ETA         int64   `json:"eta"`
+	State       string  `json:"state"`
 }
 
 // Completed reports whether the torrent has finished downloading.
