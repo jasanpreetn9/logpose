@@ -17,3 +17,13 @@ qbittorrent:
   host: "http://localhost:8080/"
   username: "admin"
   password: "adminadmin"
+
+# Automatically queue monitored missing episodes after every metadata refresh.
+# Requires qbittorrent.enabled above. Defaults to false.
+autoDownload: false
+
+# Optional external notifications. Leave blank to disable either one.
+notifications:
+  discordWebhookUrl: ""
+  jellyfinUrl: ""
+  jellyfinApiKey: ""
