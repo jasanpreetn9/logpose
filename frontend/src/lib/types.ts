@@ -23,6 +23,35 @@ type RenamePreviewItem = {
     to: string;
 }
 
+type QueueItem = {
+    hash: string;
+    name: string;
+    title: string;
+    arc: number;
+    episode: number;
+    progress: number;
+    size: number;
+    dlspeed: number;
+    eta: number;
+    state: string;
+}
+
+type UnmatchedFile = {
+    path: string;
+    name: string;
+    reason: 'unparseable' | 'unknown_crc';
+    crc32?: string;
+}
+
+type ManualImportPreview = {
+    title: string;
+    arc: number;
+    episode: number;
+    version: string;
+    destFolder: string;
+    destFilename: string;
+}
+
 type UnifiedArc = {
     arc: number;
     title: string;
@@ -42,6 +71,12 @@ type UnifiedArc = {
     episodeCount: number;
     episodesDownloaded: number;
     episodes: UnifiedEpisode[];
+}
+
+type HealthCheck = {
+    id: string;
+    level: 'warning' | 'error';
+    message: string;
 }
 
 type ActivityEvent = {
@@ -64,4 +99,7 @@ type AppConfig = {
     qbEnabled: boolean;
     qbHost: string;
     qbUsername: string;
+    autoDownload: boolean;
+    discordWebhookUrl: string;
+    jellyfinUrl: string;
 }

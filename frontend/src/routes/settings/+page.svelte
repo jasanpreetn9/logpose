@@ -6,6 +6,7 @@
 
 	let cfg = $state<AppConfig | null>(null);
 	let qbPassword = $state('');
+	let jellyfinApiKey = $state('');
 	let loading = $state(true);
 	let saving = $state(false);
 	let loadError = $state<string | null>(null);
@@ -36,7 +37,11 @@
 		saved = false;
 		saveError = null;
 		try {
-			const result = await api.updateConfig({ ...cfg, qbPassword: qbPassword || undefined });
+			const result = await api.updateConfig({
+				...cfg,
+				qbPassword: qbPassword || undefined,
+				jellyfinApiKey: jellyfinApiKey || undefined
+			});
 			if (result.errors) {
 				fieldErrors = result.errors;
 			} else if (result.error) {
@@ -44,6 +49,7 @@
 			} else {
 				saved = true;
 				qbPassword = '';
+				jellyfinApiKey = '';
 			}
 		} catch (e) {
 			saveError = e instanceof Error ? e.message : 'Failed to save settings';
@@ -81,7 +87,7 @@
 		refreshError = null;
 		try {
 			const res = await api.refreshMetadata();
-			refreshResult = `Refreshed — ${res.episodes} episodes, ${res.arcs} arcs, ${res.nfosUpdated} NFOs regenerated.`;
+			refreshResult = `Refreshed — ${res.episodes} episodes, ${res.arcs} arcs, ${res.nfosUpdated} NFOs regenerated${res.grabbed > 0 ? `, ${res.grabbed} auto-grabbed` : ''}.`;
 		} catch (e) {
 			refreshError = e instanceof Error ? e.message : 'Metadata refresh failed';
 		} finally {
@@ -184,6 +190,55 @@
 					{:else if qbTestError}
 						<p class="text-sm text-red-500">{qbTestError}</p>
 					{/if}
+				</div>
+			</section>
+
+			<!-- Automation -->
+			<section class="space-y-4">
+				<h2 class="text-base font-semibold border-b border-border pb-2">Automation</h2>
+				<label class="flex items-center gap-3 text-sm">
+					<input type="checkbox" bind:checked={cfg.autoDownload} class="h-4 w-4" />
+					Auto Download monitored episodes
+				</label>
+				<p class="text-xs text-muted-foreground">
+					Automatically queue monitored missing episodes in qBittorrent after every metadata
+					refresh.
+				</p>
+			</section>
+
+			<!-- Notifications -->
+			<section class="space-y-4">
+				<h2 class="text-base font-semibold border-b border-border pb-2">Notifications</h2>
+				<div class="space-y-1.5">
+					<label class="block text-sm font-medium">Discord Webhook URL</label>
+					<input
+						type="text"
+						bind:value={cfg.discordWebhookUrl}
+						placeholder="https://discord.com/api/webhooks/..."
+						class="field"
+					/>
+					{#if fieldErrors.discordWebhookUrl}
+						<p class="text-xs text-red-500">{fieldErrors.discordWebhookUrl}</p>
+					{/if}
+				</div>
+				<div class="space-y-1.5">
+					<label class="block text-sm font-medium">Jellyfin URL</label>
+					<input
+						type="text"
+						bind:value={cfg.jellyfinUrl}
+						placeholder="http://127.0.0.1:8096"
+						class="field"
+					/>
+					{#if fieldErrors.jellyfinUrl}<p class="text-xs text-red-500">{fieldErrors.jellyfinUrl}</p>{/if}
+				</div>
+				<div class="space-y-1.5">
+					<label class="block text-sm font-medium">Jellyfin API Key</label>
+					<input
+						type="password"
+						bind:value={jellyfinApiKey}
+						placeholder="Leave blank to keep current"
+						class="field"
+					/>
 				</div>
 			</section>
 
