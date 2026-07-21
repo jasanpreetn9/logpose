@@ -14,10 +14,25 @@ type Episode struct {
 
 // File inside episodes.json
 type EpisodeFile struct {
-	Version string `json:"version"`
-	CRC32   string `json:"crc32"`
-	Length  string `json:"length"`
-	URL     string `json:"url"`
+	Version    string `json:"version"`
+	CRC32      string `json:"crc32"`
+	Length     string `json:"length"`
+	URL        string `json:"url"`
+	MagnetURI  string `json:"magnet_uri"`
+	TorrentURL string `json:"torrent_url"`
+}
+
+// DownloadURL returns the best available link for handing to qBittorrent:
+// a magnet URI first (no tracker/host dependency), then a direct .torrent
+// URL, falling back to the legacy Nyaa page/search URL.
+func (f EpisodeFile) DownloadURL() string {
+	if f.MagnetURI != "" {
+		return f.MagnetURI
+	}
+	if f.TorrentURL != "" {
+		return f.TorrentURL
+	}
+	return f.URL
 }
 
 type Arc struct {

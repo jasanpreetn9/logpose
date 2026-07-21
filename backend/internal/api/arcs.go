@@ -112,7 +112,8 @@ func HandleDownloadMonitored(meta *metadata.Client, store *library.Store, qb *qb
 			arcMonitored := arc != nil && arc.Monitored
 
 			for _, epMeta := range metaEps {
-				if epMeta.File.URL == "" {
+				downloadURL := epMeta.File.DownloadURL()
+				if downloadURL == "" {
 					continue
 				}
 
@@ -134,7 +135,7 @@ func HandleDownloadMonitored(meta *metadata.Client, store *library.Store, qb *qb
 				candidates = append(candidates, toQueue{
 					crc32: epMeta.File.CRC32,
 					title: epMeta.Title,
-					url:   epMeta.File.URL,
+					url:   downloadURL,
 				})
 			}
 		})

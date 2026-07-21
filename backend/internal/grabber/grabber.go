@@ -36,7 +36,8 @@ func GrabWanted(
 
 	store.Read(func(lib *library.Library) {
 		for crc, ep := range meta.Episodes() {
-			if ep.File.URL == "" {
+			downloadURL := ep.File.DownloadURL()
+			if downloadURL == "" {
 				continue
 			}
 
@@ -62,7 +63,7 @@ func GrabWanted(
 			}
 			isNormal := ep.File.Version == "normal"
 			if _, exists := best[key]; !exists || isNormal {
-				best[key] = candidate{crc32: crc, title: ep.Title, url: ep.File.URL}
+				best[key] = candidate{crc32: crc, title: ep.Title, url: downloadURL}
 				preferred[key] = isNormal
 			}
 		}
