@@ -20,6 +20,7 @@ import (
 	"onepace-library/internal/grabber"
 	"onepace-library/internal/library"
 	"onepace-library/internal/metadata"
+	"onepace-library/internal/notify"
 	"onepace-library/internal/poller"
 	"onepace-library/internal/qbittorrent"
 	"onepace-library/internal/scanner"
@@ -87,6 +88,8 @@ func main() {
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
+
+	acts.SetNotifier(notify.New(ctx, cfg))
 
 	// Configurable metadata refresh ticker.
 	go func() {
