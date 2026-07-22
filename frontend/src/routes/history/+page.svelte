@@ -1,8 +1,7 @@
 <script lang="ts">
 	import { api } from '$lib/api';
 	import { historyEvents } from '$lib/stores';
-	import { Button } from '$lib/components/ui/button';
-	import { RefreshCw, Film } from 'lucide-svelte';
+	import { fmtRelativeTime } from '$lib/statusStyles';
 
 	let refreshing = $state(false);
 
@@ -14,44 +13,38 @@
 			refreshing = false;
 		}
 	}
-
-	function formatTime(ts: string): string {
-		return new Date(ts).toLocaleString();
-	}
 </script>
 
-<div class="p-6 space-y-4">
-	<div class="flex items-center justify-between">
-		<div>
-			<h1 class="text-2xl font-bold">History</h1>
-			<p class="text-muted-foreground text-sm mt-1">All imported episodes</p>
-		</div>
-		<Button variant="outline" size="sm" onclick={refresh} disabled={refreshing}>
-			<RefreshCw class="mr-2 h-4 w-4 {refreshing ? 'animate-spin' : ''}" />
-			Refresh
-		</Button>
-	</div>
-
-	{#if $historyEvents.length === 0}
-		<p class="text-muted-foreground text-sm">
-			No imports yet. Use "Scan Downloads" to import episodes from your downloads folder.
-		</p>
-	{:else}
-		<div class="space-y-2">
-			{#each $historyEvents as ev}
-				<div class="flex items-start gap-3 rounded-lg border bg-card px-4 py-3">
-					<Film class="mt-0.5 h-4 w-4 shrink-0 text-primary" />
-					<div class="flex-1 min-w-0 space-y-0.5">
-						<p class="text-sm font-medium">{ev.message.replace(/^Imported:\s*/, '')}</p>
-						{#if ev.details}
-							<p class="text-xs text-muted-foreground font-mono truncate" title={ev.details}>
-								{ev.details}
-							</p>
-						{/if}
-					</div>
-					<span class="text-xs text-muted-foreground shrink-0">{formatTime(ev.timestamp)}</span>
-				</div>
-			{/each}
-		</div>
-	{/if}
+<div class="mb-3 flex items-center justify-end">
+	<button
+		type="button"
+		class="cursor-pointer rounded border border-border bg-card px-2.5 py-1.5 text-[11px] font-semibold text-muted-foreground transition-colors hover:text-card-foreground disabled:opacity-50"
+		disabled={refreshing}
+		onclick={refresh}
+	>
+		{refreshing ? 'Refreshing…' : 'Refresh'}
+	</button>
 </div>
+
+{#if $historyEvents.length === 0}
+	<div class="py-12 text-center text-[12.5px] text-muted-foreground">
+		No imports yet. Use "Scan Downloads" to import episodes from your downloads folder.
+	</div>
+{:else}
+	<div class="flex flex-col gap-px overflow-hidden rounded-md border border-border bg-border">
+		{#each $historyEvents as ev (ev.id)}
+			<div class="flex items-start gap-3 bg-card px-4 py-2.5">
+				<span class="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full" style="background:#3ecf8e"></span>
+				<div class="min-w-0 flex-1">
+					<div class="text-[12.5px] text-card-foreground">{ev.message.replace(/^Imported:\s*/, '')}</div>
+					{#if ev.details}
+						<div class="mt-0.5 truncate font-mono text-[10.5px] text-muted-foreground" title={ev.details}>
+							{ev.details}
+						</div>
+					{/if}
+				</div>
+				<span class="shrink-0 font-mono text-[10px] text-muted-foreground">{fmtRelativeTime(ev.timestamp)}</span>
+			</div>
+		{/each}
+	</div>
+{/if}

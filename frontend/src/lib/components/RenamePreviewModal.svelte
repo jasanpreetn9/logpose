@@ -4,10 +4,8 @@
 		DialogContent,
 		DialogHeader,
 		DialogTitle,
-		DialogDescription,
-		DialogFooter
+		DialogDescription
 	} from '$lib/components/ui/dialog';
-	import { Button } from '$lib/components/ui/button';
 	import { ScrollArea } from '$lib/components/ui/scroll-area';
 	import { MoveRight } from 'lucide-svelte';
 
@@ -36,10 +34,10 @@
 </script>
 
 <Dialog {open} {onOpenChange}>
-	<DialogContent class="max-w-4xl">
+	<DialogContent class="max-w-[640px] max-h-[74vh] overflow-auto bg-card">
 		<DialogHeader>
-			<DialogTitle>Rename Files</DialogTitle>
-			<DialogDescription>
+			<DialogTitle class="text-[14px] text-card-foreground">Rename Files</DialogTitle>
+			<DialogDescription class="text-[11.5px] text-muted-foreground">
 				{#if renames.length === 0}
 					All {total} recognized files already have the correct name.
 				{:else}
@@ -50,19 +48,17 @@
 		</DialogHeader>
 
 		{#if renames.length > 0}
-			<ScrollArea class="max-h-[60vh] pr-4">
-				<div class="space-y-4">
+			<ScrollArea class="max-h-[50vh] pr-4">
+				<div class="flex flex-col gap-3">
 					{#each folders as group}
 						<div>
-							<p class="mb-1 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-								{group.folder}
-							</p>
-							<div class="space-y-1">
+							<p class="mb-1 font-mono text-[10px] text-muted-foreground">{group.folder}</p>
+							<div class="flex flex-col gap-1.5">
 								{#each group.items as item}
-									<div class="rounded-md border bg-muted/30 px-3 py-2">
-										<p class="font-mono text-xs text-muted-foreground line-through">{item.from}</p>
-										<p class="flex items-center gap-1.5 font-mono text-xs text-foreground">
-											<MoveRight class="h-3 w-3 shrink-0 text-green-500" />
+									<div class="rounded-[5px] border border-border bg-background px-2.5 py-2 font-mono text-[10.5px]">
+										<p class="mb-0.5 break-all text-destructive line-through">{item.from}</p>
+										<p class="flex items-center gap-1.5 break-all" style="color:#3ecf8e">
+											<MoveRight class="h-3 w-3 shrink-0" />
 											{item.to}
 										</p>
 									</div>
@@ -74,15 +70,16 @@
 			</ScrollArea>
 		{/if}
 
-		<DialogFooter>
-			<Button variant="outline" onclick={() => onOpenChange(false)} disabled={renaming}>
-				Cancel
-			</Button>
-			{#if renames.length > 0}
-				<Button onclick={onConfirm} disabled={renaming}>
-					{renaming ? 'Renaming…' : `Rename ${renames.length} File${renames.length === 1 ? '' : 's'}`}
-				</Button>
-			{/if}
-		</DialogFooter>
+		{#if renames.length > 0}
+			<button
+				type="button"
+				class="w-full cursor-pointer rounded-[5px] py-2 text-center text-[12.5px] font-bold text-primary transition-colors hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-60"
+				style="background:#233042"
+				disabled={renaming}
+				onclick={onConfirm}
+			>
+				{renaming ? 'Renaming…' : 'Confirm Rename'}
+			</button>
+		{/if}
 	</DialogContent>
 </Dialog>

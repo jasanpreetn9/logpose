@@ -1,8 +1,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { api } from '$lib/api';
-	import { Button } from '$lib/components/ui/button';
-	import { RefreshCw, Plug } from 'lucide-svelte';
+	import { Switch } from '$lib/components/ui/switch';
 
 	let cfg = $state<AppConfig | null>(null);
 	let qbPassword = $state('');
@@ -94,192 +93,182 @@
 			refreshingMeta = false;
 		}
 	}
+
+	const section = 'rounded-md border border-border bg-card p-[18px]';
+	const sectionTitle = 'mb-3.5 text-[13px] font-bold text-card-foreground';
+	const fieldLabel = 'text-[11px] text-muted-foreground';
+	const field =
+		'mt-1.5 block w-full box-border rounded border border-[#2a2f3a] bg-background px-2.5 py-2 text-[12px] text-card-foreground outline-none focus:ring-2 focus:ring-ring';
+	const fieldMono = field + ' font-mono';
+	const accentButton =
+		'cursor-pointer rounded-[5px] px-3.5 py-2 text-[12px] font-semibold text-primary transition-colors hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-60';
 </script>
 
-<div class="p-6 max-w-2xl space-y-8">
-	<div>
-		<h1 class="text-2xl font-bold">Settings</h1>
-		<p class="text-muted-foreground text-sm mt-1">Configure paths, metadata, and qBittorrent</p>
-	</div>
+{#if loading}
+	<p class="text-sm text-muted-foreground">Loading…</p>
+{:else if cfg}
+	<form
+		onsubmit={(e) => {
+			e.preventDefault();
+			save();
+		}}
+		class="flex max-w-[560px] flex-col gap-4"
+	>
+		<!-- Paths -->
+		<section class={section}>
+			<div class={sectionTitle}>Paths</div>
+			<div class="flex flex-col gap-2.5">
+				<label class={fieldLabel}>
+					Library Path
+					<input type="text" bind:value={cfg.libraryPath} class={fieldMono} />
+					{#if fieldErrors.libraryPath}<p class="mt-1 text-[10.5px] text-destructive">{fieldErrors.libraryPath}</p>{/if}
+				</label>
+				<label class={fieldLabel}>
+					Download Path
+					<input type="text" bind:value={cfg.downloadPath} class={fieldMono} />
+					{#if fieldErrors.downloadPath}<p class="mt-1 text-[10.5px] text-destructive">{fieldErrors.downloadPath}</p>{/if}
+				</label>
+				<label class={fieldLabel}>
+					Library JSON Path
+					<input type="text" bind:value={cfg.libraryJsonPath} class={fieldMono} />
+					{#if fieldErrors.libraryJsonPath}<p class="mt-1 text-[10.5px] text-destructive">{fieldErrors.libraryJsonPath}</p>{/if}
+				</label>
+			</div>
+		</section>
 
-	{#if loading}
-		<p class="text-muted-foreground text-sm">Loading…</p>
-	{:else if cfg}
-		<form onsubmit={(e) => { e.preventDefault(); save(); }} class="space-y-8">
-
-			<!-- Paths -->
-			<section class="space-y-4">
-				<h2 class="text-base font-semibold border-b border-border pb-2">Paths</h2>
-				<div class="space-y-1.5">
-					<label class="block text-sm font-medium">Library Path</label>
-					<input type="text" bind:value={cfg.libraryPath} class="field" />
-					{#if fieldErrors.libraryPath}<p class="text-xs text-red-500">{fieldErrors.libraryPath}</p>{/if}
-				</div>
-				<div class="space-y-1.5">
-					<label class="block text-sm font-medium">Downloads Path</label>
-					<input type="text" bind:value={cfg.downloadPath} class="field" />
-					{#if fieldErrors.downloadPath}<p class="text-xs text-red-500">{fieldErrors.downloadPath}</p>{/if}
-				</div>
-				<div class="space-y-1.5">
-					<label class="block text-sm font-medium">Library JSON Path</label>
-					<input type="text" bind:value={cfg.libraryJsonPath} class="field" />
-					{#if fieldErrors.libraryJsonPath}<p class="text-xs text-red-500">{fieldErrors.libraryJsonPath}</p>{/if}
-				</div>
-			</section>
-
-			<!-- Metadata -->
-			<section class="space-y-4">
-				<h2 class="text-base font-semibold border-b border-border pb-2">Metadata</h2>
-				<div class="space-y-1.5">
-					<label class="block text-sm font-medium">Episodes URL</label>
-					<input type="text" bind:value={cfg.metadataEpisodesUrl} class="field" />
-					{#if fieldErrors.metadataEpisodesUrl}<p class="text-xs text-red-500">{fieldErrors.metadataEpisodesUrl}</p>{/if}
-				</div>
-				<div class="space-y-1.5">
-					<label class="block text-sm font-medium">Arcs URL</label>
-					<input type="text" bind:value={cfg.metadataArcsUrl} class="field" />
-					{#if fieldErrors.metadataArcsUrl}<p class="text-xs text-red-500">{fieldErrors.metadataArcsUrl}</p>{/if}
-				</div>
-				<div class="space-y-1.5">
-					<label class="block text-sm font-medium">Refresh Interval</label>
-					<input type="text" bind:value={cfg.metadataRefreshInterval} placeholder="e.g. 24h, 30m" class="field" />
+		<!-- Metadata -->
+		<section class={section}>
+			<div class={sectionTitle}>Metadata</div>
+			<div class="flex flex-col gap-2.5">
+				<label class={fieldLabel}>
+					Episodes URL
+					<input type="text" bind:value={cfg.metadataEpisodesUrl} class={fieldMono} />
+					{#if fieldErrors.metadataEpisodesUrl}<p class="mt-1 text-[10.5px] text-destructive">{fieldErrors.metadataEpisodesUrl}</p>{/if}
+				</label>
+				<label class={fieldLabel}>
+					Arcs URL
+					<input type="text" bind:value={cfg.metadataArcsUrl} class={fieldMono} />
+					{#if fieldErrors.metadataArcsUrl}<p class="mt-1 text-[10.5px] text-destructive">{fieldErrors.metadataArcsUrl}</p>{/if}
+				</label>
+				<label class={fieldLabel}>
+					Refresh Interval
+					<input type="text" bind:value={cfg.metadataRefreshInterval} placeholder="e.g. 24h, 30m" class={fieldMono} />
 					{#if fieldErrors.metadataRefreshInterval}
-						<p class="text-xs text-red-500">{fieldErrors.metadataRefreshInterval}</p>
+						<p class="mt-1 text-[10.5px] text-destructive">{fieldErrors.metadataRefreshInterval}</p>
 					{/if}
-				</div>
-				<div class="flex items-center gap-4 pt-1">
-					<Button type="button" variant="outline" size="sm" onclick={refreshMetadata} disabled={refreshingMeta}>
-						<RefreshCw class="mr-2 h-4 w-4 {refreshingMeta ? 'animate-spin' : ''}" />
-						{refreshingMeta ? 'Refreshing…' : 'Refresh Now'}
-					</Button>
-					{#if refreshResult}
-						<p class="text-sm text-green-500">{refreshResult}</p>
-					{:else if refreshError}
-						<p class="text-sm text-red-500">{refreshError}</p>
-					{/if}
-				</div>
-			</section>
-
-			<!-- qBittorrent -->
-			<section class="space-y-4">
-				<h2 class="text-base font-semibold border-b border-border pb-2">qBittorrent</h2>
-				<label class="flex items-center gap-3 text-sm">
-					<input type="checkbox" bind:checked={cfg.qbEnabled} class="h-4 w-4" />
-					Enabled
 				</label>
-				<div class="space-y-1.5">
-					<label class="block text-sm font-medium">Host</label>
-					<input type="text" bind:value={cfg.qbHost} placeholder="http://127.0.0.1:8080" class="field" />
-					{#if fieldErrors.qbHost}<p class="text-xs text-red-500">{fieldErrors.qbHost}</p>{/if}
-				</div>
-				<div class="space-y-1.5">
-					<label class="block text-sm font-medium">Username</label>
-					<input type="text" bind:value={cfg.qbUsername} class="field" />
-				</div>
-				<div class="space-y-1.5">
-					<label class="block text-sm font-medium">Password</label>
-					<input type="password" bind:value={qbPassword} placeholder="Leave blank to keep current" class="field" />
-				</div>
-				<div class="flex items-center gap-4 pt-1">
-					<Button type="button" variant="outline" size="sm" onclick={testQbit} disabled={testingQb}>
-						<Plug class="mr-2 h-4 w-4" />
-						{testingQb ? 'Testing…' : 'Test Connection'}
-					</Button>
-					{#if qbTestResult}
-						<p class="text-sm text-green-500">{qbTestResult}</p>
-					{:else if qbTestError}
-						<p class="text-sm text-red-500">{qbTestError}</p>
-					{/if}
-				</div>
-			</section>
+			</div>
+			<div class="mt-3.5 flex items-center gap-3">
+				<button type="button" class={accentButton} style="background:#233042" disabled={refreshingMeta} onclick={refreshMetadata}>
+					{refreshingMeta ? 'Refreshing…' : 'Refresh Now'}
+				</button>
+				{#if refreshResult}
+					<span class="text-[11.5px]" style="color:#3ecf8e">{refreshResult}</span>
+				{:else if refreshError}
+					<span class="text-[11.5px] text-destructive">{refreshError}</span>
+				{/if}
+			</div>
+		</section>
 
-			<!-- Automation -->
-			<section class="space-y-4">
-				<h2 class="text-base font-semibold border-b border-border pb-2">Automation</h2>
-				<label class="flex items-center gap-3 text-sm">
-					<input type="checkbox" bind:checked={cfg.autoDownload} class="h-4 w-4" />
-					Auto Download monitored episodes
+		<!-- qBittorrent -->
+		<section class={section}>
+			<div class="mb-3.5 flex items-center justify-between">
+				<div class="text-[13px] font-bold text-card-foreground">qBittorrent</div>
+				<Switch checked={cfg.qbEnabled} onCheckedChange={(v) => cfg && (cfg.qbEnabled = v)} />
+			</div>
+			<div class="flex flex-col gap-2.5">
+				<label class={fieldLabel}>
+					Host
+					<input type="text" bind:value={cfg.qbHost} placeholder="http://127.0.0.1:8080/" class={fieldMono} />
+					{#if fieldErrors.qbHost}<p class="mt-1 text-[10.5px] text-destructive">{fieldErrors.qbHost}</p>{/if}
 				</label>
-				<p class="text-xs text-muted-foreground">
-					Automatically queue monitored missing episodes in qBittorrent after every metadata
-					refresh.
-				</p>
-			</section>
+				<label class={fieldLabel}>
+					Username
+					<input type="text" bind:value={cfg.qbUsername} class={field} />
+				</label>
+				<label class={fieldLabel}>
+					Password
+					<input type="password" bind:value={qbPassword} placeholder="leave blank to keep current" class={field} />
+				</label>
+			</div>
+			<div class="mt-3.5 flex items-center gap-3">
+				<button type="button" class={accentButton} style="background:#233042" disabled={testingQb} onclick={testQbit}>
+					{testingQb ? 'Testing…' : 'Test Connection'}
+				</button>
+				{#if qbTestResult}
+					<span class="text-[11px]" style="color:#3ecf8e">{qbTestResult}</span>
+				{:else if qbTestError}
+					<span class="text-[11px] text-destructive">{qbTestError}</span>
+				{/if}
+			</div>
+		</section>
 
-			<!-- Notifications -->
-			<section class="space-y-4">
-				<h2 class="text-base font-semibold border-b border-border pb-2">Notifications</h2>
-				<div class="space-y-1.5">
-					<label class="block text-sm font-medium">Discord Webhook URL</label>
+		<!-- Automation -->
+		<section class={section}>
+			<div class={sectionTitle}>Automation</div>
+			<div class="flex items-center justify-between">
+				<div>
+					<div class="text-[12.5px] text-foreground">Auto-Download</div>
+					<div class="mt-0.5 text-[11px] text-muted-foreground">
+						Auto-queue monitored missing episodes after every metadata refresh
+					</div>
+				</div>
+				<Switch checked={cfg.autoDownload} onCheckedChange={(v) => cfg && (cfg.autoDownload = v)} />
+			</div>
+		</section>
+
+		<!-- Notifications -->
+		<section class={section}>
+			<div class={sectionTitle}>Notifications</div>
+			<div class="flex flex-col gap-2.5">
+				<label class={fieldLabel}>
+					Discord Webhook URL
 					<input
 						type="text"
 						bind:value={cfg.discordWebhookUrl}
-						placeholder="https://discord.com/api/webhooks/..."
-						class="field"
+						placeholder="blank disables Discord notifications"
+						class={fieldMono}
 					/>
-					{#if fieldErrors.discordWebhookUrl}
-						<p class="text-xs text-red-500">{fieldErrors.discordWebhookUrl}</p>
-					{/if}
-				</div>
-				<div class="space-y-1.5">
-					<label class="block text-sm font-medium">Jellyfin URL</label>
+					{#if fieldErrors.discordWebhookUrl}<p class="mt-1 text-[10.5px] text-destructive">{fieldErrors.discordWebhookUrl}</p>{/if}
+				</label>
+				<label class={fieldLabel}>
+					Jellyfin URL
 					<input
 						type="text"
 						bind:value={cfg.jellyfinUrl}
-						placeholder="http://127.0.0.1:8096"
-						class="field"
+						placeholder="blank disables Jellyfin refresh"
+						class={fieldMono}
 					/>
-					{#if fieldErrors.jellyfinUrl}<p class="text-xs text-red-500">{fieldErrors.jellyfinUrl}</p>{/if}
-				</div>
-				<div class="space-y-1.5">
-					<label class="block text-sm font-medium">Jellyfin API Key</label>
-					<input
-						type="password"
-						bind:value={jellyfinApiKey}
-						placeholder="Leave blank to keep current"
-						class="field"
-					/>
-				</div>
-			</section>
-
-			<!-- Server -->
-			<section class="space-y-4">
-				<h2 class="text-base font-semibold border-b border-border pb-2">Server</h2>
-				<div class="space-y-1.5">
-					<label class="block text-sm font-medium">Port</label>
-					<input type="text" bind:value={cfg.port} class="field" />
-					{#if fieldErrors.port}<p class="text-xs text-red-500">{fieldErrors.port}</p>{/if}
-				</div>
-			</section>
-
-			<div class="flex items-center gap-4">
-				<Button type="submit" disabled={saving}>
-					{saving ? 'Saving…' : 'Save Settings'}
-				</Button>
-				{#if saved}
-					<p class="text-sm text-green-500">Settings saved.</p>
-				{:else if saveError}
-					<p class="text-sm text-red-500">{saveError}</p>
-				{/if}
+					{#if fieldErrors.jellyfinUrl}<p class="mt-1 text-[10.5px] text-destructive">{fieldErrors.jellyfinUrl}</p>{/if}
+				</label>
+				<label class={fieldLabel}>
+					Jellyfin API Key
+					<input type="password" bind:value={jellyfinApiKey} placeholder="leave blank to keep current" class={field} />
+				</label>
 			</div>
-		</form>
-	{:else if loadError}
-		<p class="text-sm text-red-500">{loadError}</p>
-	{/if}
-</div>
+		</section>
 
-<style>
-	.field {
-		width: 100%;
-		border-radius: 0.375rem;
-		border: 1px solid var(--border);
-		background: var(--background);
-		padding: 0.5rem 0.75rem;
-		font-size: 0.875rem;
-		color: var(--foreground);
-		outline: none;
-	}
-	.field:focus {
-		box-shadow: 0 0 0 2px var(--ring);
-	}
-</style>
+		<!-- Server -->
+		<section class={section}>
+			<div class={sectionTitle}>Server</div>
+			<label class={fieldLabel}>
+				Port
+				<input type="text" bind:value={cfg.port} class={fieldMono} style="max-width:140px" />
+				{#if fieldErrors.port}<p class="mt-1 text-[10.5px] text-destructive">{fieldErrors.port}</p>{/if}
+			</label>
+		</section>
+
+		<div class="flex items-center gap-3">
+			<button type="submit" class={accentButton + ' font-bold'} style="background:#233042" disabled={saving}>
+				{saving ? 'Saving…' : 'Save Settings'}
+			</button>
+			{#if saved}
+				<span class="text-[11.5px]" style="color:#3ecf8e">Saved</span>
+			{:else if saveError}
+				<span class="text-[11.5px] text-destructive">{saveError}</span>
+			{/if}
+		</div>
+	</form>
+{:else if loadError}
+	<p class="text-sm text-destructive">{loadError}</p>
+{/if}

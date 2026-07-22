@@ -1,106 +1,75 @@
 <script lang="ts">
 	import { arcs } from '$lib/stores';
-	import { Badge } from '$lib/components/ui/badge';
-	import { Button } from '$lib/components/ui/button';
 
 	const list = $derived($arcs);
 
-	const totalEpisodes = $derived(list.reduce((sum, a) => sum + a.episodeCount, 0));
-	const totalDownloaded = $derived(list.reduce((sum, a) => sum + a.episodesDownloaded, 0));
-	const completeArcs = $derived(list.filter((a) => a.episodesDownloaded === a.episodeCount && a.episodeCount > 0).length);
-	const monitored = $derived(list.reduce((sum, a) => sum + a.episodes.filter((e) => e.monitored).length, 0));
+	function thumbGradient(arc: UnifiedArc, pct: number) {
+		if (arc.status) return 'linear-gradient(135deg,#3a2f1c,#1c2028)';
+		if (pct === 0) return 'linear-gradient(135deg,#2a2028,#1c2028)';
+		return 'linear-gradient(135deg,#233042,#1c2028)';
+	}
+
+	function numColor(arc: UnifiedArc, pct: number) {
+		if (arc.status) return '#f5a623';
+		if (pct === 0) return '#8992a0';
+		return '#4d9fff';
+	}
+
+	function countColor(pct: number) {
+		if (pct >= 100) return '#3ecf8e';
+		if (pct > 0) return '#f5a623';
+		return '#6b7280';
+	}
+
+	function subsShort(subtitleLanguages: string) {
+		const langs = subtitleLanguages
+			.split(',')
+			.map((s) => s.trim())
+			.filter(Boolean);
+		return langs.length > 3 ? `${langs.slice(0, 3).join(', ')} +${langs.length - 3}` : subtitleLanguages;
+	}
 </script>
 
-<div class="p-6 space-y-6">
-	<!-- Stats -->
-	<div class="grid grid-cols-2 gap-4 sm:grid-cols-4">
-		<div class="rounded-xl border bg-card p-4 space-y-1">
-			<p class="text-xs text-muted-foreground uppercase tracking-wider">Arcs</p>
-			<p class="text-2xl font-bold">{list.length}</p>
-		</div>
-		<div class="rounded-xl border bg-card p-4 space-y-1">
-			<p class="text-xs text-muted-foreground uppercase tracking-wider">Episodes</p>
-			<p class="text-2xl font-bold">{totalEpisodes}</p>
-		</div>
-		<div class="rounded-xl border bg-card p-4 space-y-1">
-			<p class="text-xs text-muted-foreground uppercase tracking-wider">Downloaded</p>
-			<p class="text-2xl font-bold">{totalDownloaded}</p>
-		</div>
-		<div class="rounded-xl border bg-card p-4 space-y-1">
-			<p class="text-xs text-muted-foreground uppercase tracking-wider">Monitored</p>
-			<p class="text-2xl font-bold">{monitored}</p>
-		</div>
-	</div>
-
-	<!-- Arc grid -->
-	<div class="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
-		{#each list as arc}
-			<a
-				href={`/library/${arc.arc}`}
-				class="group block rounded-xl border bg-card hover:shadow-lg hover:border-primary transition p-5"
+<div class="grid gap-3" style="grid-template-columns: repeat(auto-fill, minmax(250px, 1fr))">
+	{#each list as arc (arc.arc)}
+		{@const pct = arc.episodeCount > 0 ? (arc.episodesDownloaded / arc.episodeCount) * 100 : 0}
+		<a
+			href={`/library/${arc.arc}`}
+			class="cursor-pointer rounded-[5px] border border-border bg-card p-[13px] transition-colors hover:border-[#3a4150]"
+		>
+			<div
+				class="mb-2.5 flex h-14 items-center justify-center rounded-[3px] font-mono text-[12px] font-semibold"
+				style="background:{thumbGradient(arc, pct)};color:{numColor(arc, pct)}"
 			>
-				<!-- Header -->
-				<div class="flex justify-between items-start mb-2">
-					<div>
-						<h2 class="text-lg font-semibold group-hover:text-primary transition">
-							Arc {arc.arc}: {arc.title}
-						</h2>
-						<p class="text-xs text-muted-foreground">{arc.resolution}</p>
-					</div>
+				{String(arc.arc).padStart(2, '0')}
+			</div>
 
-					<Badge
-						variant="secondary"
-						class={arc.episodesDownloaded === arc.episodeCount && arc.episodeCount > 0
-							? 'bg-green-600 text-white'
-							: ''}
-					>
-						{arc.episodesDownloaded}/{arc.episodeCount}
-					</Badge>
-				</div>
+			<div class="mb-1.5 flex items-center gap-1.5">
+				<div class="flex-1 text-[13.5px] font-semibold text-card-foreground">{arc.title}</div>
+				{#if arc.status}
+					<span class="rounded-[2px] px-1.5 py-0.5 font-mono text-[9.5px]" style="color:#f5a623;background:#2a2213">
+						{arc.status}
+					</span>
+				{/if}
+			</div>
 
-				<!-- Progress bar -->
-				<div class="h-1.5 w-full rounded-full bg-muted overflow-hidden mb-3">
-					<div
-						class="h-full rounded-full bg-primary transition-all"
-						style="width: {arc.episodeCount > 0 ? (arc.episodesDownloaded / arc.episodeCount) * 100 : 0}%"
-					></div>
-				</div>
+			<div class="mb-2 flex flex-wrap gap-1.5 font-mono text-[10px] text-muted-foreground">
+				<span class="rounded-[2px] bg-secondary px-1.5 py-0.5">{arc.resolution}</span>
+				<span class="rounded-[2px] bg-secondary px-1.5 py-0.5">{arc.audioLanguages}</span>
+				<span class="rounded-[2px] bg-secondary px-1.5 py-0.5" title={arc.subtitleLanguages}>
+					{subsShort(arc.subtitleLanguages)}
+				</span>
+			</div>
 
-				<!-- Metadata -->
-				<div class="text-sm text-muted-foreground space-y-1">
-					<p><span class="font-medium text-foreground">Audio:</span> {arc.audioLanguages}</p>
-					<p><span class="font-medium text-foreground">Subtitles:</span> {arc.subtitleLanguages}</p>
-
-					{#if arc.mangaChapters !== null}
-						<p><span class="font-medium text-foreground">Manga Chapters:</span> {arc.mangaChapters}</p>
-					{/if}
-					{#if arc.timeSavedMins !== null}
-						<p><span class="font-medium text-foreground">Time Saved:</span> {arc.timeSavedMins} min ({arc.timeSavedPercent}%)</p>
-					{/if}
-				</div>
-
-				<!-- Footer -->
-				<div class="mt-4 flex justify-between items-center">
-					<Badge
-						variant="outline"
-						class={arc.episodesDownloaded === arc.episodeCount
-							? 'border-green-600 text-green-600'
-							: arc.episodesDownloaded > 0
-								? 'border-yellow-500 text-yellow-600'
-								: 'border-red-500 text-red-600'}
-					>
-						{arc.episodesDownloaded === arc.episodeCount
-							? 'Complete'
-							: arc.episodesDownloaded > 0
-								? 'In Progress'
-								: 'Not Started'}
-					</Badge>
-
-					<Button size="sm" variant="ghost" class="opacity-0 group-hover:opacity-100 transition">
-						Open →
-					</Button>
-				</div>
-			</a>
-		{/each}
-	</div>
+			<div class="mb-1 flex items-center justify-between">
+				<span class="font-mono text-[10.5px]" style="color:{countColor(pct)}">
+					{arc.episodesDownloaded}/{arc.episodeCount} eps
+				</span>
+				<span class="font-mono text-[10.5px] text-[#8992a0]">{Math.round(pct)}%</span>
+			</div>
+			<div class="h-[3px] overflow-hidden rounded-full bg-[#2a2e36]">
+				<div class="h-full" style="width:{pct}%;background:{countColor(pct)}"></div>
+			</div>
+		</a>
+	{/each}
 </div>

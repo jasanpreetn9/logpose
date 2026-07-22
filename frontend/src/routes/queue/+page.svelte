@@ -2,10 +2,8 @@
 	import { onMount, onDestroy } from 'svelte';
 	import { api } from '$lib/api';
 	import { arcs } from '$lib/stores';
-	import { Button } from '$lib/components/ui/button';
-	import { Badge } from '$lib/components/ui/badge';
 	import ManualImportModal from '$lib/components/ManualImportModal.svelte';
-	import { X, FileQuestion } from 'lucide-svelte';
+	import { queueStateStyle, fmtBytes, fmtSpeed, fmtEta } from '$lib/statusStyles';
 
 	let queue = $state<QueueItem[]>([]);
 	let loaded = $state(false);
@@ -13,17 +11,13 @@
 	let removing = $state<Set<string>>(new Set());
 
 	let unmatched = $state<UnmatchedFile[]>([]);
-	let pickerOpenFor = $state<string | null>(null);
-	let pickerArc = $state<number | null>(null);
-	let pickerEpisode = $state<number | null>(null);
-	let pickerVersion = $state<'normal' | 'extended'>('normal');
 
 	let modalOpen = $state(false);
+	let modalTarget = $state<UnmatchedFile | null>(null);
 	let modalPreview = $state<ManualImportPreview | null>(null);
 	let modalLoading = $state(false);
 	let modalError = $state<string | null>(null);
 	let modalImporting = $state(false);
-	let modalTarget = $state<UnmatchedFile | null>(null);
 
 	let timer: ReturnType<typeof setInterval> | null = null;
 
@@ -56,30 +50,20 @@
 		if (timer) clearInterval(timer);
 	});
 
-	function openPicker(file: UnmatchedFile) {
-		pickerOpenFor = file.path;
-		pickerArc = $arcs[0]?.arc ?? null;
-		pickerEpisode = $arcs[0]?.episodes[0]?.episode ?? null;
-		pickerVersion = 'normal';
-	}
-
-	const pickerEpisodes = $derived($arcs.find((a) => a.arc === pickerArc)?.episodes ?? []);
-
-	async function openPreview(file: UnmatchedFile) {
-		if (pickerArc == null || pickerEpisode == null) return;
+	function openMatch(file: UnmatchedFile) {
 		modalTarget = file;
 		modalPreview = null;
 		modalError = null;
-		modalLoading = true;
 		modalOpen = true;
-		pickerOpenFor = null;
+	}
+
+	async function previewMatch(params: { arc: number; episode: number; version: string }) {
+		if (!modalTarget) return;
+		modalPreview = null;
+		modalError = null;
+		modalLoading = true;
 		try {
-			modalPreview = await api.previewManualImport({
-				path: file.path,
-				arc: pickerArc,
-				episode: pickerEpisode,
-				version: pickerVersion
-			});
+			modalPreview = await api.previewManualImport({ path: modalTarget.path, ...params });
 		} catch (e) {
 			modalError = e instanceof Error ? e.message : 'Failed to resolve metadata';
 		} finally {
@@ -87,17 +71,13 @@
 		}
 	}
 
-	async function confirmImport() {
-		if (!modalTarget || pickerArc == null || pickerEpisode == null) return;
+	async function confirmMatch(params: { arc: number; episode: number; version: string }) {
+		if (!modalTarget) return;
 		modalImporting = true;
 		try {
-			await api.confirmManualImport({
-				path: modalTarget.path,
-				arc: pickerArc,
-				episode: pickerEpisode,
-				version: pickerVersion
-			});
-			unmatched = unmatched.filter((f) => f.path !== modalTarget?.path);
+			await api.confirmManualImport({ path: modalTarget.path, ...params });
+			const path = modalTarget.path;
+			unmatched = unmatched.filter((f) => f.path !== path);
 			arcs.set(await api.getAllEpisodes());
 			modalOpen = false;
 		} catch (e) {
@@ -121,171 +101,92 @@
 		}
 	}
 
-	function formatSize(bytes: number): string {
-		if (!bytes) return '—';
-		const units = ['B', 'KiB', 'MiB', 'GiB'];
-		let i = 0;
-		let v = bytes;
-		while (v >= 1024 && i < units.length - 1) {
-			v /= 1024;
-			i++;
-		}
-		return `${v.toFixed(v >= 100 ? 0 : 1)} ${units[i]}`;
+	function queueLabel(item: QueueItem): string {
+		if (!item.title) return item.name;
+		const arc = $arcs.find((a) => a.arc === item.arc);
+		return arc ? `${arc.title} — ${item.title}` : item.title;
 	}
-
-	function formatSpeed(bps: number): string {
-		return bps > 0 ? `${formatSize(bps)}/s` : '—';
-	}
-
-	function formatETA(seconds: number): string {
-		if (!seconds || seconds < 0 || seconds >= 8640000) return '—';
-		const h = Math.floor(seconds / 3600);
-		const m = Math.floor((seconds % 3600) / 60);
-		const s = seconds % 60;
-		if (h > 0) return `${h}h ${m}m`;
-		if (m > 0) return `${m}m ${s}s`;
-		return `${s}s`;
-	}
-
-	const stateColors: Record<string, string> = {
-		downloading: 'bg-primary text-primary-foreground',
-		stalledDL: 'bg-warning text-warning-foreground',
-		uploading: 'bg-green-600 text-white',
-		stalledUP: 'bg-green-600/60 text-white',
-		pausedDL: 'bg-muted text-muted-foreground',
-		error: 'bg-destructive text-destructive-foreground'
-	};
 </script>
 
-<div class="p-6 space-y-4">
-	<div>
-		<h1 class="text-2xl font-bold">Queue</h1>
-		<p class="text-muted-foreground text-sm mt-1">Downloads currently in qBittorrent</p>
-	</div>
+{#if error}
+	<p class="mb-3 text-xs text-destructive">{error}</p>
+{/if}
 
-	{#if error}
-		<p class="text-sm text-red-500">{error}</p>
-	{/if}
-
-	{#if loaded && queue.length === 0}
-		<p class="text-muted-foreground">Queue is empty.</p>
-	{:else if queue.length > 0}
-		<div class="space-y-2">
-			{#each queue as item (item.hash)}
-				<div class="rounded-lg border bg-card px-4 py-3">
-					<div class="flex items-center justify-between gap-4">
-						<div class="min-w-0 flex-1 space-y-1.5">
-							<div class="flex items-center gap-2">
-								{#if item.title}
-									<Badge variant="secondary" class="text-xs shrink-0">
-										Arc {item.arc} · Ep {item.episode}
-									</Badge>
-									<span class="truncate text-sm font-medium">{item.title}</span>
-								{:else}
-									<span class="truncate text-sm font-medium">{item.name}</span>
-								{/if}
-								<Badge class={`text-xs shrink-0 ${stateColors[item.state] ?? 'bg-muted text-muted-foreground'}`}>
-									{item.state}
-								</Badge>
-							</div>
-
-							<div class="h-2 w-full overflow-hidden rounded-full bg-muted">
-								<div
-									class="h-full rounded-full bg-primary transition-all"
-									style={`width: ${Math.round(item.progress * 100)}%`}
-								></div>
-							</div>
-
-							<div class="flex items-center gap-4 text-xs text-muted-foreground">
-								<span>{Math.round(item.progress * 100)}%</span>
-								<span>{formatSize(item.size)}</span>
-								<span>{formatSpeed(item.dlspeed)}</span>
-								<span>ETA {formatETA(item.eta)}</span>
-							</div>
-						</div>
-
-						<Button
-							size="sm"
-							variant="ghost"
+{#if loaded && queue.length === 0}
+	<div class="py-10 text-center text-[13px] text-muted-foreground">Queue is empty</div>
+{:else if queue.length > 0}
+	<div class="mb-6 flex flex-col gap-2.5">
+		{#each queue as item (item.hash)}
+			{@const state = queueStateStyle(item.state)}
+			{@const pct = Math.round(item.progress * 100)}
+			<div class="rounded-md border border-border bg-card px-4 py-3.5">
+				<div class="mb-2 flex items-center justify-between gap-2">
+					<div class="min-w-0">
+						<div class="truncate text-[13px] font-semibold text-card-foreground">{queueLabel(item)}</div>
+						<div class="mt-0.5 truncate font-mono text-[10px] text-muted-foreground">{item.name}</div>
+					</div>
+					<div class="flex shrink-0 items-center gap-3.5">
+						<span class="rounded px-1.5 py-0.5 font-mono text-[10.5px]" style="color:{state.color};background:{state.bg}">
+							{state.label}
+						</span>
+						<button
+							type="button"
+							class="cursor-pointer text-[14px] text-muted-foreground hover:text-card-foreground disabled:opacity-50"
+							title="Remove torrent (keeps files)"
 							disabled={removing.has(item.hash)}
 							onclick={() => remove(item.hash)}
-							title="Remove from qBittorrent (keeps files)"
 						>
-							<X class="h-4 w-4" />
-						</Button>
+							&times;
+						</button>
 					</div>
 				</div>
-			{/each}
-		</div>
-	{/if}
-
-	{#if unmatched.length > 0}
-		<div class="pt-4">
-			<div class="flex items-center gap-2 mb-2">
-				<FileQuestion class="h-4 w-4 text-muted-foreground" />
-				<h2 class="text-lg font-semibold">Unmatched Downloads</h2>
+				<div class="mb-1.5 h-[5px] overflow-hidden rounded-full bg-[#262b34]">
+					<div class="h-full transition-[width] duration-300" style="width:{pct}%;background:{state.color}"></div>
+				</div>
+				<div class="flex justify-between font-mono text-[10.5px] text-muted-foreground">
+					<span>{pct}%</span><span>{fmtSpeed(item.dlspeed)}</span><span>ETA {fmtEta(item.eta)}</span><span>{fmtBytes(item.size)}</span>
+				</div>
 			</div>
-			<p class="text-muted-foreground text-sm mb-3">
-				Files Logpose couldn't automatically match to an episode. Pick the correct episode to
-				import them manually.
-			</p>
-			<div class="space-y-2">
-				{#each unmatched as file (file.path)}
-					<div class="rounded-lg border bg-card px-4 py-3 space-y-2">
-						<div class="flex items-center justify-between gap-4">
-							<div class="min-w-0 flex-1">
-								<p class="truncate text-sm font-medium">{file.name}</p>
-								<p class="text-xs text-muted-foreground">
-									{file.reason === 'unparseable'
-										? "Filename doesn't match a One Pace release"
-										: `Unknown CRC ${file.crc32}`}
-								</p>
-							</div>
-							<Button
-								size="sm"
-								variant="outline"
-								onclick={() => (pickerOpenFor === file.path ? (pickerOpenFor = null) : openPicker(file))}
-							>
-								Match
-							</Button>
-						</div>
+		{/each}
+	</div>
+{/if}
 
-						{#if pickerOpenFor === file.path}
-							<div class="flex flex-wrap items-center gap-2 border-t pt-2">
-								<select
-									class="rounded-md border bg-background px-2 py-1 text-sm"
-									bind:value={pickerArc}
-									onchange={() => (pickerEpisode = pickerEpisodes[0]?.episode ?? null)}
-								>
-									{#each $arcs as arc}
-										<option value={arc.arc}>Arc {arc.arc}: {arc.title}</option>
-									{/each}
-								</select>
-								<select class="rounded-md border bg-background px-2 py-1 text-sm" bind:value={pickerEpisode}>
-									{#each pickerEpisodes as ep}
-										<option value={ep.episode}>Ep {ep.episode}: {ep.title}</option>
-									{/each}
-								</select>
-								<select class="rounded-md border bg-background px-2 py-1 text-sm" bind:value={pickerVersion}>
-									<option value="normal">Normal</option>
-									<option value="extended">Extended</option>
-								</select>
-								<Button size="sm" onclick={() => openPreview(file)}>Preview</Button>
-							</div>
-						{/if}
+<div class="mb-2.5 text-[12.5px] font-bold text-card-foreground">Unmatched Downloads</div>
+{#if unmatched.length === 0}
+	<div class="text-[12px] text-muted-foreground">Nothing unmatched.</div>
+{:else}
+	<div class="flex flex-col gap-2">
+		{#each unmatched as file (file.path)}
+			<div class="flex items-center justify-between gap-2.5 rounded-md border border-border bg-card px-4 py-2.5">
+				<div class="min-w-0">
+					<div class="truncate font-mono text-[12.5px] text-card-foreground">{file.name}</div>
+					<div class="mt-0.5 text-[10.5px] text-muted-foreground">
+						{file.reason === 'unparseable' ? "Filename doesn't match a One Pace release" : 'Unknown CRC'}
+						{#if file.crc32}&middot; CRC {file.crc32}{/if}
 					</div>
-				{/each}
+				</div>
+				<button
+					type="button"
+					class="shrink-0 cursor-pointer rounded px-3 py-1.5 text-[11px] font-semibold text-primary transition-colors hover:brightness-110"
+					style="background:#233042"
+					onclick={() => openMatch(file)}
+				>
+					Match…
+				</button>
 			</div>
-		</div>
-	{/if}
-</div>
+		{/each}
+	</div>
+{/if}
 
 <ManualImportModal
 	open={modalOpen}
 	onOpenChange={(o) => (modalOpen = o)}
+	file={modalTarget}
+	arcs={$arcs}
 	preview={modalPreview}
 	loading={modalLoading}
 	error={modalError}
 	importing={modalImporting}
-	onConfirm={confirmImport}
+	onPreview={previewMatch}
+	onConfirm={confirmMatch}
 />

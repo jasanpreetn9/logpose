@@ -14,7 +14,7 @@ type EpisodeVersion = {
     crc32: string;
     version: "normal" | "extended";
     file_path: string | null;
-    status: "imported" | "missing" | "upgradable" | "queued";
+    status: "imported" | "missing" | "upgradable" | "queued" | "importing";
 }
 
 type RenamePreviewItem = {
@@ -59,6 +59,7 @@ type UnifiedArc = {
     subtitleLanguages: string;
     resolution: string;
     status: string;
+    monitored: boolean;
 
     mangaChapters: string | null;
     numberOfChapters: string | null;
