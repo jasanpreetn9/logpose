@@ -160,11 +160,18 @@ func HandleRenameFiles(meta *metadata.Client, cfg *config.Config, store *library
 					}
 					key := fmt.Sprintf("%d", op.Episode)
 					ep, ok := arc.Episodes[key]
-					if !ok || !strings.EqualFold(ep.CRC32, op.CRC) {
+					if !ok {
 						continue
 					}
-					ep.FilePath = op.NewPath
-					arc.Episodes[key] = ep
+					for versionKey, v := range ep.Versions {
+						if !strings.EqualFold(v.CRC32, op.CRC) {
+							continue
+						}
+						v.FilePath = op.NewPath
+						ep.Versions[versionKey] = v
+						arc.Episodes[key] = ep
+						break
+					}
 				}
 				return nil
 			}); err != nil {

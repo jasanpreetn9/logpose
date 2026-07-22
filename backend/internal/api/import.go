@@ -201,7 +201,7 @@ func HandleManualImport(meta *metadata.Client, cfg *config.Config, store *librar
 		}
 
 		nfoPath := nfo.NFOPathForVideo(plan.dst)
-		nfo.GenerateEpisodeNFO(entry, epMeta, plan.arcTitle, nfoPath)
+		nfo.GenerateEpisodeNFO(entry, entry.Versions[epMeta.File.Version], epMeta, plan.arcTitle, nfoPath)
 
 		acts.Add(activity.EventImport, "Imported: "+epMeta.Title, plan.dst, true)
 

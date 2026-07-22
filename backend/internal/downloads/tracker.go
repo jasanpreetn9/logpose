@@ -12,16 +12,23 @@ import (
 // poller first observing it in qBittorrent.
 const manualTTL = 2 * time.Minute
 
+type importState struct {
+	bytesTotal int64
+	bytesDone  int64
+}
+
 type Tracker struct {
-	mu     sync.Mutex
-	manual map[string]time.Time
-	active map[string]struct{}
+	mu        sync.Mutex
+	manual    map[string]time.Time
+	active    map[string]struct{}
+	importing map[string]*importState
 }
 
 func NewTracker() *Tracker {
 	return &Tracker{
-		manual: map[string]time.Time{},
-		active: map[string]struct{}{},
+		manual:    map[string]time.Time{},
+		active:    map[string]struct{}{},
+		importing: map[string]*importState{},
 	}
 }
 
@@ -59,4 +66,54 @@ func (t *Tracker) IsActive(crc string) bool {
 	}
 	at, ok := t.manual[crc]
 	return ok && time.Since(at) <= manualTTL
+}
+
+// SetImporting marks a CRC as being moved from the downloads folder into the
+// library, with bytesTotal for progress reporting (0 if unknown).
+func (t *Tracker) SetImporting(crc string, bytesTotal int64) {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	t.importing[strings.ToUpper(crc)] = &importState{bytesTotal: bytesTotal}
+}
+
+// UpdateImportProgress records bytes copied so far for a CRC already marked
+// importing. No-op if the CRC isn't currently importing.
+func (t *Tracker) UpdateImportProgress(crc string, bytesDone int64) {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	if s, ok := t.importing[strings.ToUpper(crc)]; ok {
+		s.bytesDone = bytesDone
+	}
+}
+
+// ClearImporting removes the importing mark for a CRC, e.g. once the move
+// finishes (successfully or not).
+func (t *Tracker) ClearImporting(crc string) {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	delete(t.importing, strings.ToUpper(crc))
+}
+
+// IsImporting reports whether the CRC is currently being moved into the library.
+func (t *Tracker) IsImporting(crc string) bool {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	_, ok := t.importing[strings.ToUpper(crc)]
+	return ok
+}
+
+// ImportProgress returns the fraction (0..1) of the move completed so far.
+// Returns 0 if the CRC isn't importing or the total size is unknown.
+func (t *Tracker) ImportProgress(crc string) float64 {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	s, ok := t.importing[strings.ToUpper(crc)]
+	if !ok || s.bytesTotal <= 0 {
+		return 0
+	}
+	frac := float64(s.bytesDone) / float64(s.bytesTotal)
+	if frac > 1 {
+		return 1
+	}
+	return frac
 }

@@ -45,6 +45,7 @@ type UnifiedArc struct {
 	TimeSavedPercent string `json:"time_saved_percent"`
 
 	Status            string `json:"status"`
+	Monitored         bool   `json:"monitored"`
 	EpisodeCount      int    `json:"episode_count"`
 	EpisodeDownloaded int    `json:"episode_downloaded"`
 
@@ -112,17 +113,24 @@ func HandleGetAllEpisodes(meta *metadata.Client, store *library.Store, tracker *
 				}
 
 				if arcLib, ok := lib.Arcs[ep.Arc]; ok {
+					build.arc.Monitored = arcLib.Monitored
 					key := fmt.Sprintf("%d", ep.Episode)
 					if libEp, ok := arcLib.Episodes[key]; ok {
 						// Monitored is an episode-level flag — set it regardless of version.
 						existing.Monitored = libEp.Monitored
-						if libEp.CRC32 == crc {
-							// This is the version currently in the library.
-							version.FilePath = libEp.FilePath
-							version.Status = libEp.DownloadStatus
-						} else if libEp.DownloadStatus == "imported" {
-							// A different version of an already-imported episode — offer as upgrade.
-							version.Status = "upgradable"
+						// Compare within the SAME version label only ("normal" vs "normal",
+						// "extended" vs "extended") — normal and extended are independent
+						// releases, not upgrades of each other.
+						if v, ok := libEp.Versions[ep.File.Version]; ok {
+							if v.CRC32 == crc {
+								// This is the file currently in the library for this version.
+								version.FilePath = v.FilePath
+								version.Status = v.DownloadStatus
+							} else if v.DownloadStatus == "imported" {
+								// A different CRC for this same version is imported — a genuine
+								// upgrade (e.g. a fixed/re-encoded release of the same cut).
+								version.Status = "upgradable"
+							}
 						}
 					}
 				}
@@ -130,6 +138,11 @@ func HandleGetAllEpisodes(meta *metadata.Client, store *library.Store, tracker *
 				// A version still sitting in qBittorrent shows as queued.
 				if (version.Status == "missing" || version.Status == "upgradable") && tracker.IsActive(crc) {
 					version.Status = "queued"
+				}
+
+				// Being moved from the downloads folder into the library right now.
+				if tracker.IsImporting(crc) {
+					version.Status = "importing"
 				}
 
 				existing.Versions = append(existing.Versions, version)

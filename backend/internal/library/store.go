@@ -109,30 +109,32 @@ func loadFromDB(d *db.DB) (*Library, error) {
 }
 
 func episodeFromRow(r db.EpisodeRow) Episode {
+	versions := map[string]EpisodeVersion{}
+	for k, v := range r.Versions {
+		versions[k] = EpisodeVersion{CRC32: v.CRC32, FilePath: v.FilePath, DownloadStatus: v.DownloadStatus}
+	}
 	return Episode{
-		EpisodeNumber:  r.EpisodeNumber,
-		CRC32:          r.CRC32,
-		Version:        r.Version,
-		FilePath:       r.FilePath,
-		Title:          r.Title,
-		Description:    r.Description,
-		DownloadStatus: r.DownloadStatus,
-		Monitored:      r.Monitored,
-		LastChecked:    r.LastChecked,
+		EpisodeNumber: r.EpisodeNumber,
+		Title:         r.Title,
+		Description:   r.Description,
+		Monitored:     r.Monitored,
+		LastChecked:   r.LastChecked,
+		Versions:      versions,
 	}
 }
 
 func episodeToRow(arcNum int, ep Episode) db.EpisodeRow {
+	versions := map[string]db.VersionRow{}
+	for k, v := range ep.Versions {
+		versions[k] = db.VersionRow{CRC32: v.CRC32, FilePath: v.FilePath, DownloadStatus: v.DownloadStatus}
+	}
 	return db.EpisodeRow{
-		ArcNumber:      arcNum,
-		EpisodeNumber:  ep.EpisodeNumber,
-		CRC32:          ep.CRC32,
-		Version:        ep.Version,
-		FilePath:       ep.FilePath,
-		Title:          ep.Title,
-		Description:    ep.Description,
-		DownloadStatus: ep.DownloadStatus,
-		Monitored:      ep.Monitored,
-		LastChecked:    ep.LastChecked,
+		ArcNumber:     arcNum,
+		EpisodeNumber: ep.EpisodeNumber,
+		Title:         ep.Title,
+		Description:   ep.Description,
+		Monitored:     ep.Monitored,
+		LastChecked:   ep.LastChecked,
+		Versions:      versions,
 	}
 }

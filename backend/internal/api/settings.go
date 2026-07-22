@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"onepace-library/internal/config"
+	"onepace-library/internal/qbittorrent"
 )
 
 type ConfigResponse struct {
@@ -72,7 +73,7 @@ func HandleGetConfig(cfg *config.Config) http.HandlerFunc {
 	}
 }
 
-func HandleUpdateConfig(cfg *config.Config, cfgPath string, tickerReset chan<- time.Duration) http.HandlerFunc {
+func HandleUpdateConfig(cfg *config.Config, cfgPath string, qb *qbittorrent.Client, tickerReset chan<- time.Duration) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var req ConfigUpdateRequest
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -136,6 +137,10 @@ func HandleUpdateConfig(cfg *config.Config, cfgPath string, tickerReset chan<- t
 			http.Error(w, "failed to save config: "+err.Error(), http.StatusInternalServerError)
 			return
 		}
+
+		// Push the new connection settings into the live client — it was built once at
+		// startup with copied field values, so config changes never reach it otherwise.
+		qb.UpdateCredentials(cfg.QBittorrent.Host, cfg.QBittorrent.Username, cfg.QBittorrent.Password)
 
 		// Signal the metadata ticker if the interval changed and is valid.
 		if cfg.MetadataRefreshInterval != oldInterval {

@@ -47,7 +47,9 @@ func GrabWanted(
 			if arc != nil {
 				if libEp, ok := arc.Episodes[fmt.Sprintf("%d", ep.Episode)]; ok {
 					monitored = libEp.Monitored
-					imported = libEp.DownloadStatus == "imported"
+					if v, ok := libEp.Versions[ep.File.Version]; ok {
+						imported = v.DownloadStatus == "imported"
+					}
 				}
 			}
 			if !monitored || imported {

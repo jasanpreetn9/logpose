@@ -2,41 +2,53 @@ package db
 
 import (
 	"database/sql"
+	"encoding/json"
 	"fmt"
 )
 
+// VersionRow is one release version's file state, stored as part of an
+// episode row's versions_json column.
+type VersionRow struct {
+	CRC32          string `json:"crc32"`
+	FilePath       string `json:"filePath"`
+	DownloadStatus string `json:"downloadStatus"`
+}
+
+// EpisodeRow is one (arc, episode) row. Versions holds every release version
+// tracked for that episode (e.g. "normal", "extended"), so importing one
+// version never overwrites another.
 type EpisodeRow struct {
-	ArcNumber      int
-	EpisodeNumber  int
-	CRC32          string
-	Version        string
-	FilePath       string
-	Title          string
-	Description    string
-	DownloadStatus string
-	Monitored      bool
-	LastChecked    string
+	ArcNumber     int
+	EpisodeNumber int
+	Title         string
+	Description   string
+	Monitored     bool
+	LastChecked   string
+	Versions      map[string]VersionRow
 }
 
 func (d *DB) UpsertEpisode(tx *sql.Tx, r EpisodeRow) error {
-	return upsertEpTx(tx, r.ArcNumber, r.EpisodeNumber, r.CRC32, r.Version,
-		r.FilePath, r.Title, r.Description, r.DownloadStatus, r.Monitored, r.LastChecked)
-}
-
-func upsertEpTx(tx *sql.Tx, arcNum, epNum int, crc32, version, filePath, title, description, downloadStatus string, monitored bool, lastChecked string) error {
-	_, err := tx.Exec(`
-		INSERT INTO episodes(arc_number,episode_number,crc32,version,file_path,title,description,download_status,monitored,last_checked)
-		VALUES(?,?,?,?,?,?,?,?,?,?)
+	if r.Versions == nil {
+		r.Versions = map[string]VersionRow{}
+	}
+	versionsJSON, err := json.Marshal(r.Versions)
+	if err != nil {
+		return fmt.Errorf("marshal versions: %w", err)
+	}
+	// crc32/version/file_path/download_status are legacy columns from the
+	// pre-versions_json schema, kept only because older databases have them
+	// as NOT NULL with no default — write empty placeholders so inserts
+	// against those databases don't fail. versions_json is the source of truth.
+	_, err = tx.Exec(`
+		INSERT INTO episodes(arc_number,episode_number,crc32,version,file_path,download_status,title,description,monitored,last_checked,versions_json)
+		VALUES(?,?,'','','','',?,?,?,?,?)
 		ON CONFLICT(arc_number,episode_number) DO UPDATE SET
-			crc32           = excluded.crc32,
-			version         = excluded.version,
-			file_path       = excluded.file_path,
-			title           = excluded.title,
-			description     = excluded.description,
-			download_status = excluded.download_status,
-			monitored       = excluded.monitored,
-			last_checked    = excluded.last_checked`,
-		arcNum, epNum, crc32, version, filePath, title, description, downloadStatus, boolInt(monitored), lastChecked,
+			title         = excluded.title,
+			description   = excluded.description,
+			monitored     = excluded.monitored,
+			last_checked  = excluded.last_checked,
+			versions_json = excluded.versions_json`,
+		r.ArcNumber, r.EpisodeNumber, r.Title, r.Description, boolInt(r.Monitored), r.LastChecked, string(versionsJSON),
 	)
 	return err
 }
@@ -44,7 +56,7 @@ func upsertEpTx(tx *sql.Tx, arcNum, epNum int, crc32, version, filePath, title, 
 // GetAllEpisodes returns all episode rows keyed by arcNumber → episodeKey (string of episode_number).
 func (d *DB) GetAllEpisodes() (map[int]map[string]EpisodeRow, error) {
 	rows, err := d.SQL.Query(`
-		SELECT arc_number,episode_number,crc32,version,file_path,title,description,download_status,monitored,last_checked
+		SELECT arc_number,episode_number,title,description,monitored,last_checked,versions_json
 		FROM episodes`)
 	if err != nil {
 		return nil, err
@@ -55,11 +67,18 @@ func (d *DB) GetAllEpisodes() (map[int]map[string]EpisodeRow, error) {
 	for rows.Next() {
 		var r EpisodeRow
 		var mon int
-		if err := rows.Scan(&r.ArcNumber, &r.EpisodeNumber, &r.CRC32, &r.Version,
-			&r.FilePath, &r.Title, &r.Description, &r.DownloadStatus, &mon, &r.LastChecked); err != nil {
+		var versionsJSON string
+		if err := rows.Scan(&r.ArcNumber, &r.EpisodeNumber, &r.Title, &r.Description,
+			&mon, &r.LastChecked, &versionsJSON); err != nil {
 			return nil, err
 		}
 		r.Monitored = mon == 1
+		r.Versions = map[string]VersionRow{}
+		if versionsJSON != "" {
+			if err := json.Unmarshal([]byte(versionsJSON), &r.Versions); err != nil {
+				return nil, fmt.Errorf("unmarshal versions for arc %d ep %d: %w", r.ArcNumber, r.EpisodeNumber, err)
+			}
+		}
 		if result[r.ArcNumber] == nil {
 			result[r.ArcNumber] = map[string]EpisodeRow{}
 		}

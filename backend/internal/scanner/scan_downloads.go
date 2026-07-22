@@ -67,7 +67,7 @@ func ScanDownloads(downloadRoot, libraryRoot string, lib *library.Library, meta 
 
 		dst := filepath.Join(arcFolder, destFilename)
 
-		if err := moveFile(path, dst, libraryRoot); err != nil {
+		if err := moveFile(path, dst, libraryRoot, nil); err != nil {
 			log.Printf("Failed to move file: %v", err)
 			return nil
 		}
@@ -75,7 +75,7 @@ func ScanDownloads(downloadRoot, libraryRoot string, lib *library.Library, meta 
 		entry := AddOrUpdateEpisode(lib, dst, parsed, epMeta, arcTitle)
 
 		nfoPath := nfo.NFOPathForVideo(dst)
-		nfo.GenerateEpisodeNFO(entry, epMeta, arcTitle, nfoPath)
+		nfo.GenerateEpisodeNFO(entry, entry.Versions[epMeta.File.Version], epMeta, arcTitle, nfoPath)
 
 		log.Printf("Imported: %s → %s", name, dst)
 		imported = append(imported, ImportedFile{

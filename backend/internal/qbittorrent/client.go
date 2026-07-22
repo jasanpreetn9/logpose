@@ -32,6 +32,16 @@ func NewClient(host, username, password string) *Client {
 	}
 }
 
+// UpdateCredentials applies new connection settings to a live client (e.g. after a
+// runtime config change) and drops any cached session, forcing a fresh login on
+// the next request.
+func (c *Client) UpdateCredentials(host, username, password string) {
+	c.Host = strings.TrimRight(host, "/")
+	c.Username = username
+	c.Password = password
+	c.Cookie = ""
+}
+
 // Login and store the SID cookie
 func (c *Client) Login() error {
 	loginURL := c.Host + "/api/v2/auth/login"

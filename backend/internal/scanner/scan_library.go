@@ -51,7 +51,7 @@ func ScanLibrary(root string, lib *library.Library, meta *metadata.Client) (Scan
 		stats.FilesFound++
 
 		nfoPath := nfo.NFOPathForVideo(path)
-		nfo.GenerateEpisodeNFO(entry, epMeta, arcTitle, nfoPath)
+		nfo.GenerateEpisodeNFO(entry, entry.Versions[epMeta.File.Version], epMeta, arcTitle, nfoPath)
 
 		return nil
 	})
@@ -63,16 +63,23 @@ func ScanLibrary(root string, lib *library.Library, meta *metadata.Client) (Scan
 	log.Println("Checking for removed files...")
 
 	for arcNum, arc := range lib.Arcs {
-		for epNum, ep := range arc.Episodes {
-			if ep.FilePath == "" {
-				continue
+		for epKey, ep := range arc.Episodes {
+			changed := false
+			for versionKey, v := range ep.Versions {
+				if v.FilePath == "" {
+					continue
+				}
+				if _, exists := foundFiles[v.FilePath]; !exists {
+					log.Printf("File missing on disk, marking as missing: %s", v.FilePath)
+					v.DownloadStatus = "missing"
+					v.FilePath = ""
+					ep.Versions[versionKey] = v
+					stats.FilesMarkedMissing++
+					changed = true
+				}
 			}
-			if _, exists := foundFiles[ep.FilePath]; !exists {
-				log.Printf("File missing on disk, marking as missing: %s", ep.FilePath)
-				ep.DownloadStatus = "missing"
-				ep.FilePath = ""
-				lib.Arcs[arcNum].Episodes[epNum] = ep
-				stats.FilesMarkedMissing++
+			if changed {
+				lib.Arcs[arcNum].Episodes[epKey] = ep
 			}
 		}
 	}

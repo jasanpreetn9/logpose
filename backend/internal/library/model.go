@@ -13,16 +13,24 @@ type Arc struct {
 	Monitored bool               `json:"monitored"`
 }
 
+// Episode tracks one metadata episode (arc + episode number), which may have
+// more than one release version (e.g. "normal" and "extended") imported
+// simultaneously. Versions is keyed by that version label.
 type Episode struct {
-	EpisodeNumber  int    `json:"episodeNumber"`
+	EpisodeNumber int                       `json:"episodeNumber"`
+	Title         string                    `json:"title"`
+	Description   string                    `json:"description"`
+	Monitored     bool                      `json:"monitored"`
+	LastChecked   string                    `json:"lastChecked"`
+	Versions      map[string]EpisodeVersion `json:"versions"`
+}
+
+// EpisodeVersion tracks a single release version's file, independent of any
+// other version of the same episode.
+type EpisodeVersion struct {
 	CRC32          string `json:"crc32"`
-	Version        string `json:"version"`
 	FilePath       string `json:"filePath"`
-	Title          string `json:"title"`
-	Description    string `json:"description"`
 	DownloadStatus string `json:"downloadStatus"`
-	Monitored      bool   `json:"monitored"`
-	LastChecked    string `json:"lastChecked"`
 }
 
 // Creates a new empty library

@@ -9,6 +9,9 @@ import (
 )
 
 // AddOrUpdateEpisode merges a scanned file + metadata into the library store.
+// Each release version (e.g. "normal", "extended") is tracked independently,
+// so importing one version never overwrites another already-imported version
+// of the same episode.
 func AddOrUpdateEpisode(
 	lib *library.Library,
 	filePath string,
@@ -27,18 +30,21 @@ func AddOrUpdateEpisode(
 	key := fmt.Sprintf("%d", meta.Episode)
 
 	existing, exists := arc.Episodes[key]
-
-	entry := library.Episode{
-		EpisodeNumber:  meta.Episode,
-		CRC32:          meta.File.CRC32,
-		Title:          meta.Title,
-		Description:    meta.Description,
-		Version:        meta.File.Version,
-		FilePath:       filepath.ToSlash(filePath),
-		DownloadStatus: "imported",
-		Monitored:      existing.Monitored || !exists,
+	if !exists {
+		existing = library.Episode{EpisodeNumber: meta.Episode, Monitored: true}
+	}
+	if existing.Versions == nil {
+		existing.Versions = map[string]library.EpisodeVersion{}
 	}
 
-	arc.Episodes[key] = entry
-	return entry
+	existing.Title = meta.Title
+	existing.Description = meta.Description
+	existing.Versions[meta.File.Version] = library.EpisodeVersion{
+		CRC32:          meta.File.CRC32,
+		FilePath:       filepath.ToSlash(filePath),
+		DownloadStatus: "imported",
+	}
+
+	arc.Episodes[key] = existing
+	return existing
 }
