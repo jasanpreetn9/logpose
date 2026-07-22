@@ -45,7 +45,7 @@ func RegisterRoutes(
 		api.Post("/arcs/{arcId}/download-monitored", HandleDownloadMonitored(meta, store, qb, acts, tracker, cfg.QBittorrent.Enabled))
 		api.Post("/arcs/{arcId}/verify-nfo", HandleVerifyNFOs(meta, store, acts))
 
-		api.Get("/queue", HandleGetQueue(meta, qb, cfg.QBittorrent.Enabled))
+		api.Get("/queue", HandleGetQueue(meta, qb, tracker, cfg.QBittorrent.Enabled))
 		api.Delete("/queue/{hash}", HandleDeleteQueueItem(qb, cfg.QBittorrent.Enabled))
 
 		api.Get("/import/unmatched", HandleGetUnmatched(meta, cfg))
@@ -63,7 +63,7 @@ func RegisterRoutes(
 		api.Get("/health", HandleHealth(cfg, meta, qb))
 
 		api.Get("/config", HandleGetConfig(cfg))
-		api.Post("/config", HandleUpdateConfig(cfg, cfgPath, tickerReset))
+		api.Post("/config", HandleUpdateConfig(cfg, cfgPath, qb, tickerReset))
 
 		api.Get("/events", sse.HandleSSE(hub))
 	})

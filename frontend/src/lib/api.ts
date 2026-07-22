@@ -47,6 +47,7 @@ type RawArc = {
     subtitle_languages: string;
     resolution: string;
     status: string;
+    monitored: boolean;
     manga_chapters: string;
     number_of_chapters: string;
     anime_episodes: string;
@@ -93,6 +94,7 @@ function mapArc(a: RawArc): UnifiedArc {
         subtitleLanguages: a.subtitle_languages,
         resolution: a.resolution,
         status: a.status,
+        monitored: a.monitored,
 
         mangaChapters: a.manga_chapters || null,
         numberOfChapters: a.number_of_chapters || null,

@@ -1,9 +1,7 @@
 <script lang="ts">
 	import { api } from '$lib/api';
 	import { activity } from '$lib/stores';
-	import { Badge } from '$lib/components/ui/badge';
-	import { Button } from '$lib/components/ui/button';
-	import { RefreshCw, CheckCircle, XCircle } from 'lucide-svelte';
+	import { activityTypeStyle, fmtRelativeTime } from '$lib/statusStyles';
 
 	let refreshing = $state(false);
 
@@ -15,65 +13,42 @@
 			refreshing = false;
 		}
 	}
-
-	function eventLabel(type: ActivityEvent['type']): string {
-		const map: Record<ActivityEvent['type'], string> = {
-			download_queued: 'Download',
-			download_failed: 'Download',
-			library_scan: 'Library Scan',
-			downloads_scan: 'Downloads Scan',
-			import: 'Import',
-			metadata_refresh: 'Metadata'
-		};
-		return map[type] ?? type;
-	}
-
-	function eventVariant(ev: ActivityEvent): 'default' | 'secondary' | 'destructive' | 'outline' {
-		if (!ev.success) return 'destructive';
-		if (ev.type === 'import') return 'default';
-		return 'secondary';
-	}
-
-	function formatTime(ts: string): string {
-		return new Date(ts).toLocaleString();
-	}
 </script>
 
-<div class="p-6 space-y-4">
-	<div class="flex items-center justify-between">
-		<div>
-			<h1 class="text-2xl font-bold">Activity</h1>
-			<p class="text-muted-foreground text-sm mt-1">Recent download and scan events</p>
-		</div>
-		<Button variant="outline" size="sm" onclick={refresh} disabled={refreshing}>
-			<RefreshCw class="mr-2 h-4 w-4 {refreshing ? 'animate-spin' : ''}" />
-			Refresh
-		</Button>
-	</div>
-
-	{#if $activity.length === 0}
-		<p class="text-muted-foreground text-sm">No activity yet. Try scanning your library or downloads.</p>
-	{:else}
-		<div class="space-y-2">
-			{#each $activity as ev}
-				<div class="flex items-start gap-3 rounded-lg border bg-card px-4 py-3">
-					{#if ev.success}
-						<CheckCircle class="mt-0.5 h-4 w-4 shrink-0 text-green-500" />
-					{:else}
-						<XCircle class="mt-0.5 h-4 w-4 shrink-0 text-red-500" />
-					{/if}
-					<div class="flex-1 min-w-0 space-y-0.5">
-						<div class="flex items-center gap-2 flex-wrap">
-							<Badge variant={eventVariant(ev)} class="text-xs">{eventLabel(ev.type)}</Badge>
-							<span class="text-sm font-medium">{ev.message}</span>
-						</div>
-						{#if ev.details}
-							<p class="text-xs text-muted-foreground font-mono truncate">{ev.details}</p>
-						{/if}
-					</div>
-					<span class="text-xs text-muted-foreground shrink-0">{formatTime(ev.timestamp)}</span>
-				</div>
-			{/each}
-		</div>
-	{/if}
+<div class="mb-3 flex items-center justify-end">
+	<button
+		type="button"
+		class="cursor-pointer rounded border border-border bg-card px-2.5 py-1.5 text-[11px] font-semibold text-muted-foreground transition-colors hover:text-card-foreground disabled:opacity-50"
+		disabled={refreshing}
+		onclick={refresh}
+	>
+		{refreshing ? 'Refreshing…' : 'Refresh'}
+	</button>
 </div>
+
+{#if $activity.length === 0}
+	<div class="py-12 text-center text-[12.5px] text-muted-foreground">
+		No activity yet. Try scanning your library or downloads.
+	</div>
+{:else}
+	<div class="flex flex-col gap-px overflow-hidden rounded-md border border-border bg-border">
+		{#each $activity as ev (ev.id)}
+			{@const meta = activityTypeStyle(ev.type)}
+			<div class="flex items-start gap-3 bg-card px-4 py-2.5">
+				<span class="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full" style="background:{ev.success ? meta.color : '#e5484d'}"></span>
+				<span class="w-[110px] shrink-0 pt-px font-mono text-[9.5px]" style="color:{ev.success ? meta.color : '#e5484d'}">
+					{meta.label}
+				</span>
+				<div class="min-w-0 flex-1">
+					<div class="text-[12.5px] text-card-foreground">{ev.message}</div>
+					{#if ev.details}
+						<div class="mt-0.5 truncate font-mono text-[10.5px] text-muted-foreground" title={ev.details}>
+							{ev.details}
+						</div>
+					{/if}
+				</div>
+				<span class="shrink-0 font-mono text-[10px] text-muted-foreground">{fmtRelativeTime(ev.timestamp)}</span>
+			</div>
+		{/each}
+	</div>
+{/if}

@@ -27,11 +27,16 @@ CREATE TABLE IF NOT EXISTS arcs (
   monitored  INTEGER NOT NULL DEFAULT 1
 );
 
+-- Legacy flat crc32/version/file_path/download_status columns are kept (but
+-- unused) for any row not yet covered by migrateVersionsColumn's backfill.
+-- Current data lives in versions_json: {"normal": {crc32,filePath,downloadStatus}, ...}
+-- — one entry per release version, so importing "extended" never overwrites
+-- the "normal" entry (or vice versa).
 CREATE TABLE IF NOT EXISTS episodes (
   id              INTEGER PRIMARY KEY AUTOINCREMENT,
   arc_number      INTEGER NOT NULL,
   episode_number  INTEGER NOT NULL,
-  crc32           TEXT    NOT NULL,
+  crc32           TEXT    NOT NULL DEFAULT '',
   version         TEXT    NOT NULL DEFAULT '',
   file_path       TEXT    NOT NULL DEFAULT '',
   title           TEXT    NOT NULL DEFAULT '',
@@ -39,6 +44,7 @@ CREATE TABLE IF NOT EXISTS episodes (
   download_status TEXT    NOT NULL DEFAULT 'missing',
   monitored       INTEGER NOT NULL DEFAULT 1,
   last_checked    TEXT    NOT NULL DEFAULT '',
+  versions_json   TEXT    NOT NULL DEFAULT '{}',
   UNIQUE(arc_number, episode_number)
 );
 
@@ -72,6 +78,10 @@ func Open(path string) (*DB, error) {
 	}
 
 	d := &DB{SQL: sqlDB}
+
+	if err := d.migrateVersionsColumn(); err != nil {
+		return nil, fmt.Errorf("migrate episodes to per-version tracking: %w", err)
+	}
 
 	if err := d.migrateFromJSON(jsonSiblingPath(path)); err != nil {
 		log.Printf("library.json migration skipped: %v", err)
@@ -169,8 +179,22 @@ func (d *DB) migrateFromJSON(jsonPath string) error {
 				return err
 			}
 			for _, ep := range arc.Episodes {
-				if err := upsertEpTx(tx, arcNum, ep.EpisodeNumber, ep.CRC32, ep.Version,
-					ep.FilePath, ep.Title, ep.Description, ep.DownloadStatus, ep.Monitored, ep.LastChecked); err != nil {
+				version := ep.Version
+				if version == "" {
+					version = "normal"
+				}
+				row := EpisodeRow{
+					ArcNumber:     arcNum,
+					EpisodeNumber: ep.EpisodeNumber,
+					Title:         ep.Title,
+					Description:   ep.Description,
+					Monitored:     ep.Monitored,
+					LastChecked:   ep.LastChecked,
+					Versions: map[string]VersionRow{
+						version: {CRC32: ep.CRC32, FilePath: ep.FilePath, DownloadStatus: ep.DownloadStatus},
+					},
+				}
+				if err := d.UpsertEpisode(tx, row); err != nil {
 					return err
 				}
 			}
@@ -178,6 +202,92 @@ func (d *DB) migrateFromJSON(jsonPath string) error {
 		log.Printf("Migrated library.json → SQLite (%d arcs)", len(lib.Arcs))
 		return nil
 	})
+}
+
+// migrateVersionsColumn adds the versions_json column to episodes if it's
+// missing (pre-existing databases created before per-version tracking), then
+// backfills it from the legacy flat crc32/version/file_path/download_status
+// columns for any row that hasn't been migrated yet. Idempotent — safe to run
+// on every startup.
+func (d *DB) migrateVersionsColumn() error {
+	hasCol, err := d.columnExists("episodes", "versions_json")
+	if err != nil {
+		return err
+	}
+	if !hasCol {
+		if _, err := d.SQL.Exec(`ALTER TABLE episodes ADD COLUMN versions_json TEXT NOT NULL DEFAULT '{}'`); err != nil {
+			return fmt.Errorf("add versions_json column: %w", err)
+		}
+	}
+
+	type legacyRow struct {
+		id                                       int
+		crc32, version, filePath, downloadStatus string
+	}
+	var legacy []legacyRow
+	rows, err := d.SQL.Query(`
+		SELECT id, crc32, version, file_path, download_status
+		FROM episodes WHERE versions_json = '{}' AND crc32 != ''`)
+	if err != nil {
+		return fmt.Errorf("query legacy episode rows: %w", err)
+	}
+	for rows.Next() {
+		var r legacyRow
+		if err := rows.Scan(&r.id, &r.crc32, &r.version, &r.filePath, &r.downloadStatus); err != nil {
+			rows.Close()
+			return err
+		}
+		legacy = append(legacy, r)
+	}
+	if err := rows.Err(); err != nil {
+		return err
+	}
+	rows.Close()
+
+	if len(legacy) == 0 {
+		return nil
+	}
+
+	return d.Tx(func(tx *sql.Tx) error {
+		for _, r := range legacy {
+			version := r.version
+			if version == "" {
+				version = "normal"
+			}
+			versions := map[string]VersionRow{
+				version: {CRC32: r.crc32, FilePath: r.filePath, DownloadStatus: r.downloadStatus},
+			}
+			b, err := json.Marshal(versions)
+			if err != nil {
+				return err
+			}
+			if _, err := tx.Exec(`UPDATE episodes SET versions_json = ? WHERE id = ?`, string(b), r.id); err != nil {
+				return err
+			}
+		}
+		log.Printf("Migrated %d episode row(s) to per-version tracking", len(legacy))
+		return nil
+	})
+}
+
+func (d *DB) columnExists(table, column string) (bool, error) {
+	rows, err := d.SQL.Query(fmt.Sprintf(`PRAGMA table_info(%s)`, table))
+	if err != nil {
+		return false, err
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var cid, notnull, pk int
+		var name, ctype string
+		var dflt sql.NullString
+		if err := rows.Scan(&cid, &name, &ctype, &notnull, &dflt, &pk); err != nil {
+			return false, err
+		}
+		if name == column {
+			return true, nil
+		}
+	}
+	return false, rows.Err()
 }
 
 func boolInt(b bool) int {

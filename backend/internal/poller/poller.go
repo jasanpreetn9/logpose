@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"time"
 
 	"onepace-library/internal/activity"
@@ -19,6 +20,11 @@ import (
 	"onepace-library/internal/qbittorrent"
 	"onepace-library/internal/scanner"
 )
+
+// importing tracks torrent hashes with an import currently running in a
+// goroutine, so a slow cross-volume copy on one poll tick doesn't get
+// re-triggered by the next tick before it finishes.
+var importing sync.Map
 
 // Start runs the completion poller until ctx is cancelled.
 func Start(
@@ -76,9 +82,15 @@ func poll(
 		if !t.Completed() {
 			continue
 		}
-		if err := importTorrent(t, qb, meta, store, acts, libPath, downloadPath); err != nil {
-			log.Printf("poller: import %q: %v", t.Name, err)
+		if _, alreadyRunning := importing.LoadOrStore(t.Hash, true); alreadyRunning {
+			continue
 		}
+		go func(t qbittorrent.TorrentInfo) {
+			defer importing.Delete(t.Hash)
+			if err := importTorrent(t, qb, meta, store, acts, tracker, libPath, downloadPath); err != nil {
+				log.Printf("poller: import %q: %v", t.Name, err)
+			}
+		}(t)
 	}
 	return nil
 }
@@ -89,6 +101,7 @@ func importTorrent(
 	meta *metadata.Client,
 	store *library.Store,
 	acts *activity.Store,
+	tracker *downloads.Tracker,
 	libPath string,
 	downloadPath string,
 ) error {
@@ -109,7 +122,7 @@ func importTorrent(
 
 	// Single-file torrent: name parses directly as an episode filename.
 	if parsed, err := scanner.ParseOnePaceFilename(t.Name); err == nil {
-		return importFile(contentPath, parsed, qb, t.Hash, t.Name, meta, store, acts, libPath, true)
+		return importFile(contentPath, parsed, qb, t.Hash, t.Name, meta, store, acts, tracker, libPath, true)
 	}
 
 	// Folder torrent: walk ContentPath for episode files.
@@ -139,7 +152,7 @@ func importTorrent(
 			log.Printf("poller: skipping %s (not an episode file)", fi.Name())
 			return nil
 		}
-		if err := importFile(path, parsed, nil, "", fi.Name(), meta, store, acts, libPath, false); err != nil {
+		if err := importFile(path, parsed, nil, "", fi.Name(), meta, store, acts, tracker, libPath, false); err != nil {
 			log.Printf("poller: %s: %v", fi.Name(), err)
 			importErr = err
 		} else {
@@ -176,6 +189,7 @@ func importFile(
 	meta *metadata.Client,
 	store *library.Store,
 	acts *activity.Store,
+	tracker *downloads.Tracker,
 	libPath string,
 	deleteTorrent bool,
 ) error {
@@ -209,7 +223,17 @@ func importFile(
 		return err
 	}
 
-	if err := scanner.MoveFile(srcPath, dst, libPath); err != nil {
+	var srcSize int64
+	if info, err := os.Stat(srcPath); err == nil {
+		srcSize = info.Size()
+	}
+	tracker.SetImporting(parsed.CRC32, srcSize)
+	defer tracker.ClearImporting(parsed.CRC32)
+
+	err = scanner.MoveFileWithProgress(srcPath, dst, libPath, func(bytesDone int64) {
+		tracker.UpdateImportProgress(parsed.CRC32, bytesDone)
+	})
+	if err != nil {
 		return fmt.Errorf("move %s → %s: %w", srcPath, dst, err)
 	}
 
@@ -222,7 +246,7 @@ func importFile(
 	}
 
 	nfoPath := nfo.NFOPathForVideo(dst)
-	nfo.GenerateEpisodeNFO(entry, epMeta, arcTitle, nfoPath)
+	nfo.GenerateEpisodeNFO(entry, entry.Versions[epMeta.File.Version], epMeta, arcTitle, nfoPath)
 
 	acts.Add(activity.EventImport, "Imported: "+epMeta.Title, dst, true)
 	log.Printf("poller: imported %s → %s", logName, dst)

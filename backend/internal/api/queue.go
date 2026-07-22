@@ -6,6 +6,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 
+	"onepace-library/internal/downloads"
 	"onepace-library/internal/metadata"
 	"onepace-library/internal/qbittorrent"
 	"onepace-library/internal/scanner"
@@ -27,7 +28,7 @@ type QueueItem struct {
 // HandleGetQueue returns all torrents in the Logpose category, enriched with
 // episode info where the torrent name parses.
 // GET /api/queue
-func HandleGetQueue(meta *metadata.Client, qb *qbittorrent.Client, enabled bool) http.HandlerFunc {
+func HandleGetQueue(meta *metadata.Client, qb *qbittorrent.Client, tracker *downloads.Tracker, enabled bool) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		items := []QueueItem{}
 		if enabled {
@@ -51,6 +52,15 @@ func HandleGetQueue(meta *metadata.Client, qb *qbittorrent.Client, enabled bool)
 						item.Title = epMeta.Title
 						item.Arc = epMeta.Arc
 						item.Episode = epMeta.Episode
+					}
+					// The torrent stays in qBittorrent (at 100%) for as long as the
+					// move into the library takes — surface that as its own state
+					// with real byte progress rather than a stale "completed" torrent.
+					if tracker.IsImporting(parsed.CRC32) {
+						item.State = "importing"
+						item.Progress = tracker.ImportProgress(parsed.CRC32)
+						item.DLSpeed = 0
+						item.ETA = -1 // unknown — the frontend renders this as "—"
 					}
 				}
 				items = append(items, item)

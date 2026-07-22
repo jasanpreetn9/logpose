@@ -1,7 +1,6 @@
 <script lang="ts">
 	import { Dialog, DialogContent, DialogHeader, DialogTitle } from '$lib/components/ui/dialog';
-	import { Badge } from '$lib/components/ui/badge';
-	import { ScrollArea } from '$lib/components/ui/scroll-area';
+	import { episodeStatusMeta } from '$lib/statusStyles';
 
 	let {
 		open,
@@ -12,63 +11,44 @@
 		onOpenChange: (open: boolean) => void;
 		episode: UnifiedEpisode | null;
 	} = $props();
-
-	const statusColors: Record<string, string> = {
-		imported: 'bg-success text-success-foreground',
-		missing: 'bg-destructive text-destructive-foreground',
-		upgradable: 'bg-warning text-warning-foreground',
-		downloading: 'bg-primary text-primary-foreground',
-		queued: 'bg-primary/60 text-white',
-		failed: 'bg-red-700 text-white',
-		none: 'bg-muted text-muted-foreground'
-	};
-
-	function getStatus(ep: UnifiedEpisode): string {
-		const imported = ep.versions.filter((v) => v.status === 'imported');
-		const upgradable = ep.versions.filter((v) => v.status === 'upgradable');
-		if (imported.length > 0 && upgradable.length > 0) return 'upgradable';
-		if (imported.length > 0) return 'imported';
-		if (ep.versions.length === 0) return 'none';
-		return 'missing';
-	}
-
-	const downloadStatus = $derived(episode ? getStatus(episode) : 'none');
-	const filePath = $derived(episode?.versions.find((v) => v.status === 'imported')?.file_path ?? null);
 </script>
 
 <Dialog {open} {onOpenChange}>
-	<DialogContent class="max-w-3xl">
+	<DialogContent class="max-w-[520px] max-h-[78vh] overflow-auto bg-card">
 		{#if episode}
 			<DialogHeader>
-				<div class="flex items-center gap-3">
-					<DialogTitle class="text-xl">
-						Episode {episode.episode}: {episode.title}
-					</DialogTitle>
-					<Badge class={statusColors[downloadStatus]}>
-						{downloadStatus}
-					</Badge>
-				</div>
+				<DialogTitle class="text-[15px] text-card-foreground">
+					{episode.title}
+				</DialogTitle>
+				<p class="font-mono text-[11px] text-muted-foreground">
+					{episode.arc}.{String(episode.episode).padStart(2, '0')} &middot; Released {episode.released}
+				</p>
 			</DialogHeader>
 
-			<ScrollArea class="max-h-[70vh] pr-4">
-				<div class="space-y-6">
-					<p class="text-muted-foreground">{episode.description}</p>
+			<p class="text-[12.5px] leading-relaxed text-[#a3a9b3]">
+				{episode.description || 'No description available.'}
+			</p>
 
-					<div class="grid grid-cols-3 gap-4 bg-muted/50 p-4 rounded-lg">
-						<div>
-							<p class="text-xs text-muted-foreground">Released</p>
-							<p class="font-medium">{episode.released}</p>
-						</div>
-
-						{#if filePath}
-							<div>
-								<p class="text-xs text-muted-foreground">File</p>
-								<p class="font-mono text-xs">{filePath}</p>
+			<div>
+				<div class="mb-1.5 font-mono text-[10px] text-muted-foreground">VERSIONS</div>
+				<div class="flex flex-col gap-1.5">
+					{#each episode.versions as version}
+						{@const meta = episodeStatusMeta[version.status]}
+						<div class="rounded-[5px] border border-border bg-background p-2.5">
+							<div class="mb-1 flex items-center justify-between">
+								<span class="text-[12.5px] font-semibold capitalize text-card-foreground">{version.version}</span>
+								<span class="rounded-[2px] px-1.5 py-0.5 font-mono text-[10px]" style="color:{meta.color};background:{meta.bg}">
+									{meta.label}
+								</span>
 							</div>
-						{/if}
-					</div>
+							<div class="font-mono text-[10.5px] text-muted-foreground">CRC32 {version.crc32}</div>
+							{#if version.file_path}
+								<div class="mt-0.5 break-all font-mono text-[10px] text-muted-foreground">{version.file_path}</div>
+							{/if}
+						</div>
+					{/each}
 				</div>
-			</ScrollArea>
+			</div>
 		{/if}
 	</DialogContent>
 </Dialog>

@@ -58,12 +58,11 @@ func HandleMonitorArc(meta *metadata.Client, store *library.Store) http.HandlerF
 					continue
 				}
 				arc.Episodes[key] = library.Episode{
-					EpisodeNumber:  epMeta.Episode,
-					CRC32:          epMeta.File.CRC32,
-					Title:          epMeta.Title,
-					Description:    epMeta.Description,
-					DownloadStatus: "missing",
-					Monitored:      req.Monitored,
+					EpisodeNumber: epMeta.Episode,
+					Title:         epMeta.Title,
+					Description:   epMeta.Description,
+					Monitored:     req.Monitored,
+					Versions:      map[string]library.EpisodeVersion{},
 				}
 				updated++
 			}
@@ -124,7 +123,9 @@ func HandleDownloadMonitored(meta *metadata.Client, store *library.Store, qb *qb
 				if arc != nil {
 					if libEp, ok := arc.Episodes[key]; ok {
 						isMonitored = libEp.Monitored
-						isImported = libEp.DownloadStatus == "imported"
+						if v, ok := libEp.Versions[epMeta.File.Version]; ok {
+							isImported = v.DownloadStatus == "imported"
+						}
 					}
 				}
 
@@ -173,6 +174,7 @@ func HandleVerifyNFOs(meta *metadata.Client, store *library.Store, acts *activit
 
 		type toRegen struct {
 			ep       library.Episode
+			version  library.EpisodeVersion
 			arcTitle string
 		}
 		var work []toRegen
@@ -184,22 +186,24 @@ func HandleVerifyNFOs(meta *metadata.Client, store *library.Store, acts *activit
 			}
 			arcTitle := meta.GetArcTitle(arcId)
 			for _, ep := range arc.Episodes {
-				if ep.FilePath == "" {
-					continue
+				for _, v := range ep.Versions {
+					if v.FilePath == "" {
+						continue
+					}
+					work = append(work, toRegen{ep: ep, version: v, arcTitle: arcTitle})
 				}
-				work = append(work, toRegen{ep: ep, arcTitle: arcTitle})
 			}
 		})
 
 		updated := 0
 		for _, w := range work {
-			epMeta, err := meta.GetEpisodeByCRC32(w.ep.CRC32)
+			epMeta, err := meta.GetEpisodeByCRC32(w.version.CRC32)
 			if err != nil {
-				log.Printf("verify-nfo: metadata not found for CRC %s: %v", w.ep.CRC32, err)
+				log.Printf("verify-nfo: metadata not found for CRC %s: %v", w.version.CRC32, err)
 				continue
 			}
-			nfoPath := nfo.NFOPathForVideo(w.ep.FilePath)
-			if err := nfo.GenerateEpisodeNFO(w.ep, epMeta, w.arcTitle, nfoPath); err != nil {
+			nfoPath := nfo.NFOPathForVideo(w.version.FilePath)
+			if err := nfo.GenerateEpisodeNFO(w.ep, w.version, epMeta, w.arcTitle, nfoPath); err != nil {
 				log.Printf("verify-nfo: failed to write %s: %v", nfoPath, err)
 				continue
 			}

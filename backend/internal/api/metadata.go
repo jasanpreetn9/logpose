@@ -68,20 +68,22 @@ func RegenerateStaleNFOs(meta *metadata.Client, store *library.Store) int {
 	store.Read(func(lib *library.Library) {
 		for _, arc := range lib.Arcs {
 			for _, ep := range arc.Episodes {
-				for _, crc := range stale {
-					if ep.CRC32 == crc && ep.FilePath != "" {
-						epMeta, err := meta.GetEpisodeByCRC32(crc)
-						if err != nil {
-							continue
+				for _, v := range ep.Versions {
+					for _, crc := range stale {
+						if v.CRC32 == crc && v.FilePath != "" {
+							epMeta, err := meta.GetEpisodeByCRC32(crc)
+							if err != nil {
+								continue
+							}
+							arcTitle := meta.GetArcTitle(arc.ArcNumber)
+							nfoPath := nfo.NFOPathForVideo(v.FilePath)
+							if err := nfo.GenerateEpisodeNFO(ep, v, epMeta, arcTitle, nfoPath); err != nil {
+								log.Printf("Failed to regenerate NFO for %s (CRC %s): %v", ep.Title, crc, err)
+								continue
+							}
+							log.Printf("Regenerated NFO for %s (CRC %s)", ep.Title, crc)
+							updated++
 						}
-						arcTitle := meta.GetArcTitle(arc.ArcNumber)
-						nfoPath := nfo.NFOPathForVideo(ep.FilePath)
-						if err := nfo.GenerateEpisodeNFO(ep, epMeta, arcTitle, nfoPath); err != nil {
-							log.Printf("Failed to regenerate NFO for %s (CRC %s): %v", ep.Title, crc, err)
-							continue
-						}
-						log.Printf("Regenerated NFO for %s (CRC %s)", ep.Title, crc)
-						updated++
 					}
 				}
 			}

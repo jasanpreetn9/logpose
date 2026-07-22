@@ -85,16 +85,14 @@ func TestUpsertEpisode(t *testing.T) {
 	d := openMem(t)
 
 	row := EpisodeRow{
-		ArcNumber:      1,
-		EpisodeNumber:  1,
-		CRC32:          "AABBCCDD",
-		Version:        "normal",
-		FilePath:       "",
-		Title:          "The Beginning",
-		Description:    "First ep",
-		DownloadStatus: "missing",
-		Monitored:      true,
-		LastChecked:    "",
+		ArcNumber:     1,
+		EpisodeNumber: 1,
+		Title:         "The Beginning",
+		Description:   "First ep",
+		Monitored:     true,
+		Versions: map[string]VersionRow{
+			"normal": {CRC32: "AABBCCDD", FilePath: "", DownloadStatus: "missing"},
+		},
 	}
 
 	if err := d.Tx(func(tx *sql.Tx) error {
@@ -103,9 +101,8 @@ func TestUpsertEpisode(t *testing.T) {
 		t.Fatalf("initial upsert: %v", err)
 	}
 
-	// Update the file path via a second upsert.
-	row.FilePath = "/library/arc1/ep1.mkv"
-	row.DownloadStatus = "imported"
+	// Update the file path via a second upsert (same version).
+	row.Versions["normal"] = VersionRow{CRC32: "AABBCCDD", FilePath: "/library/arc1/ep1.mkv", DownloadStatus: "imported"}
 	if err := d.Tx(func(tx *sql.Tx) error {
 		return d.UpsertEpisode(tx, row)
 	}); err != nil {
@@ -130,11 +127,106 @@ func TestUpsertEpisode(t *testing.T) {
 	if !ok {
 		t.Fatalf("episode arc=1 ep=1 not found after upsert")
 	}
-	if got.FilePath != "/library/arc1/ep1.mkv" {
-		t.Errorf("FilePath: want %q, got %q", "/library/arc1/ep1.mkv", got.FilePath)
+	normal, ok := got.Versions["normal"]
+	if !ok {
+		t.Fatalf("version %q not found", "normal")
 	}
-	if got.DownloadStatus != "imported" {
-		t.Errorf("DownloadStatus: want %q, got %q", "imported", got.DownloadStatus)
+	if normal.FilePath != "/library/arc1/ep1.mkv" {
+		t.Errorf("FilePath: want %q, got %q", "/library/arc1/ep1.mkv", normal.FilePath)
+	}
+	if normal.DownloadStatus != "imported" {
+		t.Errorf("DownloadStatus: want %q, got %q", "imported", normal.DownloadStatus)
+	}
+}
+
+// TestUpsertEpisodeMultipleVersions is a regression test for the bug where
+// importing a second version (e.g. "extended") of an episode overwrote the
+// first version's row, causing the UI to show a perpetual "upgrade
+// available" ping-pong between the two versions.
+func TestUpsertEpisodeMultipleVersions(t *testing.T) {
+	d := openMem(t)
+
+	normalRow := EpisodeRow{
+		ArcNumber: 1, EpisodeNumber: 1, Title: "The Beginning", Monitored: true,
+		Versions: map[string]VersionRow{
+			"normal": {CRC32: "AAAA1111", FilePath: "/library/arc1/ep1-normal.mkv", DownloadStatus: "imported"},
+		},
+	}
+	if err := d.Tx(func(tx *sql.Tx) error { return d.UpsertEpisode(tx, normalRow) }); err != nil {
+		t.Fatalf("upsert normal: %v", err)
+	}
+
+	// Now import the extended version — this must NOT erase the normal version's row.
+	extendedRow := EpisodeRow{
+		ArcNumber: 1, EpisodeNumber: 1, Title: "The Beginning", Monitored: true,
+		Versions: map[string]VersionRow{
+			"normal":   {CRC32: "AAAA1111", FilePath: "/library/arc1/ep1-normal.mkv", DownloadStatus: "imported"},
+			"extended": {CRC32: "BBBB2222", FilePath: "/library/arc1/ep1-extended.mkv", DownloadStatus: "imported"},
+		},
+	}
+	if err := d.Tx(func(tx *sql.Tx) error { return d.UpsertEpisode(tx, extendedRow) }); err != nil {
+		t.Fatalf("upsert extended: %v", err)
+	}
+
+	var count int
+	if err := d.SQL.QueryRow(`SELECT COUNT(*) FROM episodes WHERE arc_number=1 AND episode_number=1`).Scan(&count); err != nil {
+		t.Fatalf("count query: %v", err)
+	}
+	if count != 1 {
+		t.Errorf("expected 1 row (one episode, multiple versions), got %d", count)
+	}
+
+	all, err := d.GetAllEpisodes()
+	if err != nil {
+		t.Fatalf("GetAllEpisodes: %v", err)
+	}
+	got, ok := all[1]["1"]
+	if !ok {
+		t.Fatalf("episode arc=1 ep=1 not found")
+	}
+	if len(got.Versions) != 2 {
+		t.Fatalf("expected 2 versions tracked, got %d: %+v", len(got.Versions), got.Versions)
+	}
+	if v, ok := got.Versions["normal"]; !ok || v.DownloadStatus != "imported" || v.CRC32 != "AAAA1111" {
+		t.Errorf("normal version not preserved after importing extended: %+v (ok=%v)", v, ok)
+	}
+	if v, ok := got.Versions["extended"]; !ok || v.DownloadStatus != "imported" || v.CRC32 != "BBBB2222" {
+		t.Errorf("extended version not recorded: %+v (ok=%v)", v, ok)
+	}
+}
+
+// TestMigrateVersionsColumnBackfill verifies that a row written before
+// versions_json existed (flat crc32/version/file_path/download_status only)
+// gets correctly folded into versions_json by the migration, so upgrading
+// doesn't lose track of already-imported files.
+func TestMigrateVersionsColumnBackfill(t *testing.T) {
+	d := openMem(t)
+
+	if _, err := d.SQL.Exec(`
+		INSERT INTO episodes(arc_number,episode_number,crc32,version,file_path,download_status,title,monitored)
+		VALUES(5,10,'DEADBEEF','extended','/library/arc5/ep10-ext.mkv','imported','Old Row',1)
+	`); err != nil {
+		t.Fatalf("seed legacy row: %v", err)
+	}
+
+	if err := d.migrateVersionsColumn(); err != nil {
+		t.Fatalf("migrateVersionsColumn: %v", err)
+	}
+
+	all, err := d.GetAllEpisodes()
+	if err != nil {
+		t.Fatalf("GetAllEpisodes: %v", err)
+	}
+	got, ok := all[5]["10"]
+	if !ok {
+		t.Fatalf("episode arc=5 ep=10 not found after backfill")
+	}
+	v, ok := got.Versions["extended"]
+	if !ok {
+		t.Fatalf("expected backfilled 'extended' version, got %+v", got.Versions)
+	}
+	if v.CRC32 != "DEADBEEF" || v.FilePath != "/library/arc5/ep10-ext.mkv" || v.DownloadStatus != "imported" {
+		t.Errorf("backfilled version mismatch: %+v", v)
 	}
 }
 
@@ -152,18 +244,18 @@ func TestLibraryRoundTrip(t *testing.T) {
 			num:   1,
 			title: "Romance Dawn",
 			episodes: []EpisodeRow{
-				{ArcNumber: 1, EpisodeNumber: 1, CRC32: "AAA1", Version: "normal", Title: "Ep 1-1", DownloadStatus: "missing", Monitored: true},
-				{ArcNumber: 1, EpisodeNumber: 2, CRC32: "AAA2", Version: "normal", Title: "Ep 1-2", DownloadStatus: "missing", Monitored: true},
-				{ArcNumber: 1, EpisodeNumber: 3, CRC32: "AAA3", Version: "normal", Title: "Ep 1-3", DownloadStatus: "missing", Monitored: true},
+				{ArcNumber: 1, EpisodeNumber: 1, Title: "Ep 1-1", Monitored: true, Versions: map[string]VersionRow{"normal": {CRC32: "AAA1", DownloadStatus: "missing"}}},
+				{ArcNumber: 1, EpisodeNumber: 2, Title: "Ep 1-2", Monitored: true, Versions: map[string]VersionRow{"normal": {CRC32: "AAA2", DownloadStatus: "missing"}}},
+				{ArcNumber: 1, EpisodeNumber: 3, Title: "Ep 1-3", Monitored: true, Versions: map[string]VersionRow{"normal": {CRC32: "AAA3", DownloadStatus: "missing"}}},
 			},
 		},
 		{
 			num:   2,
 			title: "Orange Town",
 			episodes: []EpisodeRow{
-				{ArcNumber: 2, EpisodeNumber: 1, CRC32: "BBB1", Version: "normal", Title: "Ep 2-1", DownloadStatus: "missing", Monitored: true},
-				{ArcNumber: 2, EpisodeNumber: 2, CRC32: "BBB2", Version: "normal", Title: "Ep 2-2", DownloadStatus: "missing", Monitored: false},
-				{ArcNumber: 2, EpisodeNumber: 3, CRC32: "BBB3", Version: "normal", Title: "Ep 2-3", DownloadStatus: "missing", Monitored: true},
+				{ArcNumber: 2, EpisodeNumber: 1, Title: "Ep 2-1", Monitored: true, Versions: map[string]VersionRow{"normal": {CRC32: "BBB1", DownloadStatus: "missing"}}},
+				{ArcNumber: 2, EpisodeNumber: 2, Title: "Ep 2-2", Monitored: false, Versions: map[string]VersionRow{"normal": {CRC32: "BBB2", DownloadStatus: "missing"}}},
+				{ArcNumber: 2, EpisodeNumber: 3, Title: "Ep 2-3", Monitored: true, Versions: map[string]VersionRow{"normal": {CRC32: "BBB3", DownloadStatus: "missing"}}},
 			},
 		},
 	}
@@ -218,8 +310,10 @@ func TestLibraryRoundTrip(t *testing.T) {
 				t.Errorf("arc %d ep %d not found", spec.num, want.EpisodeNumber)
 				continue
 			}
-			if got.CRC32 != want.CRC32 {
-				t.Errorf("arc %d ep %d: CRC32 want %q got %q", spec.num, want.EpisodeNumber, want.CRC32, got.CRC32)
+			wantVersion := want.Versions["normal"]
+			gotVersion := got.Versions["normal"]
+			if gotVersion.CRC32 != wantVersion.CRC32 {
+				t.Errorf("arc %d ep %d: CRC32 want %q got %q", spec.num, want.EpisodeNumber, wantVersion.CRC32, gotVersion.CRC32)
 			}
 			if got.Monitored != want.Monitored {
 				t.Errorf("arc %d ep %d: Monitored want %v got %v", spec.num, want.EpisodeNumber, want.Monitored, got.Monitored)

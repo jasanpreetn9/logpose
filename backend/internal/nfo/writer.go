@@ -23,7 +23,7 @@ type EpisodeNFO struct {
 	OriginalURL string `xml:"originalurl,omitempty"`
 }
 
-func GenerateEpisodeNFO(ep library.Episode, meta metadata.Episode, arcTitle string, outputPath string) error {
+func GenerateEpisodeNFO(ep library.Episode, version library.EpisodeVersion, meta metadata.Episode, arcTitle string, outputPath string) error {
 
 	nfo := EpisodeNFO{
 		Title:       ep.Title,
@@ -31,7 +31,7 @@ func GenerateEpisodeNFO(ep library.Episode, meta metadata.Episode, arcTitle stri
 		Season:      meta.Arc,     // One Pace arcs = seasons
 		Episode:     meta.Episode, // Part number
 		Aired:       meta.Released,
-		UniqueID:    ep.CRC32, // identifies specific version
+		UniqueID:    version.CRC32, // identifies specific version
 		ShowTitle:   arcTitle,
 		OriginalURL: "", // optional: source URL
 	}

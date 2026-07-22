@@ -4,21 +4,7 @@
 	import { page } from '$app/state';
 	import { onMount, onDestroy } from 'svelte';
 	import '$lib/app.css';
-	import {
-		Library,
-		Activity,
-		Clock,
-		Settings,
-		Menu,
-		X,
-		Sun,
-		Moon,
-		Monitor,
-		AlertTriangle
-	} from 'lucide-svelte';
-	import { Button } from '$lib/components/ui/button';
-	import { ScrollArea } from '$lib/components/ui/scroll-area';
-	import { Badge } from '$lib/components/ui/badge';
+	import { Menu, X } from 'lucide-svelte';
 	import RenamePreviewModal from '$lib/components/RenamePreviewModal.svelte';
 
 	import { arcs, sidebarOpen, activity, historyEvents } from '$lib/stores';
@@ -26,7 +12,7 @@
 	import { cn } from '$lib/utils';
 	import { api } from '$lib/api';
 	import { startSSE } from '$lib/sse';
-	import { theme } from '$lib/theme';
+	import { wantedEpisodes, qbitColors, type QbitStatus } from '$lib/statusStyles';
 
 	const pathname = $derived(page.url.pathname);
 
@@ -35,28 +21,72 @@
 	let refreshingMetadata = $state(false);
 	let renamingFiles = $state(false);
 	let scanError = $state<string | null>(null);
-	let scanMessage = $state<string | null>(null);
+	let toast = $state<string | null>(null);
+	let toastTimer: ReturnType<typeof setTimeout> | null = null;
 	let appVersion = $state<string | null>(null);
 
 	let healthChecks = $state<HealthCheck[]>([]);
 	let dismissedHealthIds = $state<Set<string>>(new Set());
-	const visibleHealthChecks = $derived(
-		healthChecks.filter((c) => !dismissedHealthIds.has(c.id))
+	const visibleHealthChecks = $derived(healthChecks.filter((c) => !dismissedHealthIds.has(c.id)));
+
+	let qbEnabled = $state(true);
+	const qbitStatus = $derived<QbitStatus>(
+		!qbEnabled ? 'disabled' : healthChecks.some((c) => c.id === 'qbittorrent') ? 'error' : 'connected'
 	);
+	const qbitStatusLabel = $derived(
+		{ disabled: 'QBIT DISABLED', error: 'QBIT ERROR', connected: 'QBIT CONNECTED', testing: 'QBIT TESTING' }[
+			qbitStatus
+		]
+	);
+
+	let queueCount = $state(0);
+	const wantedCount = $derived(wantedEpisodes($arcs).length);
+
+	const activeArcId = $derived(pathname.match(/^\/library\/(\d+)/)?.[1] ?? null);
+	const activeArcTitle = $derived($arcs.find((a) => String(a.arc) === activeArcId)?.title ?? null);
+	const breadcrumb = $derived(
+		activeArcId
+			? (activeArcTitle ?? `Arc ${activeArcId}`)
+			: (navigationItems.find((item) => pathname.startsWith(item.href))?.label ?? 'Library')
+	);
+	const showBack = $derived(activeArcId !== null);
 
 	let stopSSE: (() => void) | null = null;
 	let healthTimer: ReturnType<typeof setInterval> | null = null;
+	let queueTimer: ReturnType<typeof setInterval> | null = null;
 
 	async function loadHealth() {
 		try {
 			const res = await api.getHealth();
 			healthChecks = res.checks;
-			if (res.checks.length === 0) {
-				dismissedHealthIds = new Set();
-			}
+			dismissedHealthIds = new Set(
+				[...dismissedHealthIds].filter((id) => res.checks.some((c) => c.id === id))
+			);
 		} catch {
 			// Health checks are best-effort — don't surface fetch failures as a check.
 		}
+	}
+
+	async function loadQueueCount() {
+		try {
+			queueCount = (await api.getQueue()).length;
+		} catch {
+			// Best-effort — the Queue page itself surfaces fetch failures.
+		}
+	}
+
+	async function loadQbEnabled() {
+		try {
+			qbEnabled = (await api.getConfig()).qbEnabled;
+		} catch {
+			// Best-effort — leave the last-known state on failure.
+		}
+	}
+
+	function showToast(message: string) {
+		toast = message;
+		if (toastTimer) clearTimeout(toastTimer);
+		toastTimer = setTimeout(() => (toast = null), 4000);
 	}
 
 	onMount(async () => {
@@ -74,7 +104,14 @@
 			.catch(() => (appVersion = null));
 
 		loadHealth();
-		healthTimer = setInterval(loadHealth, 60000);
+		loadQbEnabled();
+		healthTimer = setInterval(() => {
+			loadHealth();
+			loadQbEnabled();
+		}, 60000);
+
+		loadQueueCount();
+		queueTimer = setInterval(loadQueueCount, 5000);
 
 		stopSSE = startSSE((ev) => {
 			activity.update((l) => [ev, ...l]);
@@ -87,10 +124,12 @@
 	onDestroy(() => {
 		stopSSE?.();
 		if (healthTimer) clearInterval(healthTimer);
+		if (queueTimer) clearInterval(queueTimer);
+		if (toastTimer) clearTimeout(toastTimer);
 	});
 
-	function dismissHealthChecks() {
-		dismissedHealthIds = new Set(healthChecks.map((c) => c.id));
+	function dismissHealthCheck(id: string) {
+		dismissedHealthIds = new Set([...dismissedHealthIds, id]);
 	}
 
 	async function handleScanLibrary() {
@@ -106,10 +145,6 @@
 		}
 	}
 
-	function cycleTheme() {
-		theme.update((t) => (t === 'light' ? 'dark' : t === 'dark' ? 'system' : 'light'));
-	}
-
 	let renameModalOpen = $state(false);
 	let renamePreview = $state<RenamePreviewItem[]>([]);
 	let renamePreviewTotal = $state(0);
@@ -118,7 +153,6 @@
 	async function handleRenameFiles() {
 		loadingRenamePreview = true;
 		scanError = null;
-		scanMessage = null;
 		try {
 			const preview = await api.previewRename();
 			renamePreview = preview.renames;
@@ -137,7 +171,7 @@
 		try {
 			const result = await api.renameFiles();
 			arcs.set(await api.getAllEpisodes());
-			scanMessage = `Renamed ${result.renamed} of ${result.total} files.`;
+			showToast(`Renamed ${result.renamed} of ${result.total} files.`);
 			renameModalOpen = false;
 		} catch (e) {
 			scanError = e instanceof Error ? e.message : 'Rename failed';
@@ -150,14 +184,14 @@
 	async function handleRefreshMetadata() {
 		refreshingMetadata = true;
 		scanError = null;
-		scanMessage = null;
 		try {
 			const result = await api.refreshMetadata();
 			arcs.set(await api.getAllEpisodes());
-			scanMessage =
+			showToast(
 				result.grabbed > 0
 					? `Metadata refreshed — ${result.grabbed} episode(s) auto-grabbed.`
-					: 'Metadata refreshed.';
+					: 'Metadata refreshed.'
+			);
 		} catch (e) {
 			scanError = e instanceof Error ? e.message : 'Refresh failed';
 		} finally {
@@ -177,6 +211,9 @@
 			scanningDownloads = false;
 		}
 	}
+
+	const toolbarChip =
+		'cursor-pointer rounded text-[11px] font-semibold text-[#8992a0] bg-card border border-border px-2.5 py-1.5 transition-colors hover:text-foreground hover:border-[#3a4150] disabled:cursor-not-allowed disabled:opacity-50';
 </script>
 
 <!-- Mobile Sidebar Overlay -->
@@ -189,198 +226,138 @@
 	></button>
 {/if}
 
-<div class="flex h-screen overflow-hidden">
+<div class="flex h-screen overflow-hidden text-[13px]">
 	<!-- Sidebar -->
 	<aside
 		class={cn(
-			'fixed inset-y-0 left-0 z-50 w-64 transform bg-sidebar border-r border-sidebar-border transition-transform duration-200 lg:relative lg:translate-x-0',
+			'fixed inset-y-0 left-0 z-50 flex w-[184px] flex-none transform flex-col gap-0.5 bg-sidebar border-r border-sidebar-border py-[18px] transition-transform duration-200 lg:relative lg:translate-x-0',
 			$sidebarOpen ? 'translate-x-0' : '-translate-x-full'
 		)}
 	>
-		<div class="flex h-full flex-col">
-			<!-- Logo -->
-			<div class="flex h-16 items-center justify-between border-b border-sidebar-border p-4">
-				<div class="flex items-center gap-2">
-					<div class="flex h-8 w-8 items-center justify-center rounded-lg bg-primary">
-						<Library class="h-5 w-5 text-primary-foreground" />
-					</div>
-					<span class="text-lg font-semibold text-sidebar-foreground">One Pace</span>
-				</div>
+		<div class="flex items-center justify-between px-[18px] pb-[18px]">
+			<span class="font-mono text-[15px] font-bold tracking-wide text-card-foreground">
+				LOG<span class="text-primary">POSE</span>
+			</span>
+			<button
+				type="button"
+				aria-label="Close sidebar"
+				class="text-muted-foreground lg:hidden"
+				onclick={() => sidebarOpen.set(false)}
+			>
+				<X class="h-4 w-4" />
+			</button>
+		</div>
 
-				<Button
-					variant="ghost"
-					size="icon"
-					class="lg:hidden"
+		<nav class="flex flex-1 flex-col gap-0.5">
+			{#each navigationItems as item}
+				{@const active = pathname.startsWith(item.href)}
+				<a
+					href={item.href}
 					onclick={() => sidebarOpen.set(false)}
+					class={cn(
+						'flex cursor-pointer items-center justify-between gap-2 border-l-2 px-[18px] py-[9px] text-[12.5px] font-semibold transition-colors',
+						active ? 'border-primary text-card-foreground bg-[#161a20]' : 'border-transparent text-[#8992a0] hover:text-card-foreground'
+					)}
 				>
-					<X class="h-5 w-5" />
-				</Button>
-			</div>
+					<span>{item.label}</span>
+					{#if item.href === '/wanted' && wantedCount > 0}
+						<span
+							class="font-mono text-[10px] rounded-full px-1.5 py-px"
+							style="background:#3a2a13;color:#f5a623"
+						>
+							{wantedCount}
+						</span>
+					{:else if item.href === '/queue' && queueCount > 0}
+						<span
+							class="font-mono text-[10px] rounded-full px-1.5 py-px"
+							style="background:#233042;color:#4d9fff"
+						>
+							{queueCount}
+						</span>
+					{/if}
+				</a>
+			{/each}
+		</nav>
 
-			<!-- Main Nav -->
-			<nav class="space-y-1 border-b border-sidebar-border p-4">
-				{#each navigationItems as item}
-					{@const active = pathname.startsWith(item.href)}
-					<Button
-						href={item.href}
-						variant={active ? 'secondary' : 'ghost'}
-						class={cn('w-full justify-start', active && 'bg-sidebar-accent')}
-					>
-						<item.icon class="mr-3 h-4 w-4" />
-						{item.label}
-					</Button>
-				{/each}
-			</nav>
-
-			<!-- Arc List -->
-			{#if pathname.startsWith('/library')}
-				<div class="border-b border-sidebar-border px-4 py-3">
-					<h3 class="text-sm font-semibold uppercase tracking-wider text-muted-foreground">Arcs</h3>
-				</div>
-				<div class="flex-1 min-h-0">
-					<ScrollArea class="h-full">
-						<div class="space-y-0.5 p-2">
-							{#each $arcs as arc}
-								<a
-									href={`/library/${arc.arc}`}
-									class={cn(
-										'relative block w-full rounded-md px-3 py-2 text-left transition-colors hover:bg-sidebar-accent',
-										pathname === `/library/${arc.arc}` && 'bg-sidebar-accent'
-									)}
-								>
-									{#if pathname === `/library/${arc.arc}`}
-										<div class="absolute left-0 top-0 h-full w-1 bg-primary rounded-r"></div>
-									{/if}
-
-									<div class="flex items-center justify-between gap-2">
-										<div class="min-w-0">
-											<div class="flex items-center gap-2">
-												<span class="text-xs text-muted-foreground font-medium">
-													#{arc.arc}
-												</span>
-												<span class="truncate text-sm font-medium text-sidebar-foreground">
-													{arc.title}
-												</span>
-											</div>
-										</div>
-
-										<Badge
-											variant="secondary"
-											class={cn(
-												'text-xs',
-												arc.episodesDownloaded === arc.episodeCount && arc.episodeCount > 0
-													? 'bg-green-600 text-white'
-													: ''
-											)}
-										>
-											{arc.episodesDownloaded} / {arc.episodeCount}
-										</Badge>
-									</div>
-								</a>
-							{/each}
-						</div>
-					</ScrollArea>
-				</div>
-			{/if}
-
-			<!-- Version -->
-			<div class="mt-auto border-t border-sidebar-border px-4 py-2">
-				<span class="text-xs text-muted-foreground">
-					Logpose {appVersion ?? '…'}
-				</span>
-			</div>
+		<div class="mt-auto px-[18px] pt-4">
+			<span class="font-mono text-[10px] text-[#4b5057]">LOGPOSE {appVersion ?? '…'}</span>
 		</div>
 	</aside>
 
 	<!-- Main Content -->
 	<div class="flex flex-1 flex-col overflow-hidden">
 		<header
-			class="flex h-16 items-center justify-between border-b border-border bg-(--header) px-4 lg:px-6"
+			class="flex min-h-[52px] flex-none flex-wrap items-center justify-between gap-2 border-b border-border px-[22px]"
 		>
-			<div class="flex items-center gap-4">
-				<Button variant="ghost" size="icon" class="lg:hidden" onclick={() => sidebarOpen.set(true)}>
-					<Menu class="h-5 w-5" />
-				</Button>
-				<h1 class="text-xl font-semibold text-foreground">One Pace Library</h1>
+			<div class="flex items-center gap-2 py-2.5 font-mono text-[12px] font-semibold text-card-foreground">
+				<button type="button" aria-label="Open sidebar" class="text-muted-foreground lg:hidden" onclick={() => sidebarOpen.set(true)}>
+					<Menu class="h-4 w-4" />
+				</button>
+				{#if showBack}
+					<a href="/library" class="text-primary hover:text-[#7ab6ff]">&larr;</a>
+				{/if}
+				{breadcrumb}
 			</div>
 
-			<div class="flex flex-col items-end gap-1">
-				<div class="flex items-center gap-3">
-					<Button variant="ghost" size="icon" onclick={cycleTheme} title="Toggle theme">
-						{#if $theme === 'light'}
-							<Sun class="h-4 w-4" />
-						{:else if $theme === 'dark'}
-							<Moon class="h-4 w-4" />
-						{:else}
-							<Monitor class="h-4 w-4" />
-						{/if}
-					</Button>
-					<Button
-						variant="outline"
-						size="sm"
-						disabled={loadingRenamePreview || renamingFiles}
-						onclick={handleRenameFiles}
-					>
-						{loadingRenamePreview ? 'Checking…' : 'Rename Files'}
-					</Button>
-					<Button
-						variant="outline"
-						size="sm"
-						disabled={refreshingMetadata}
-						onclick={handleRefreshMetadata}
-					>
-						{refreshingMetadata ? 'Refreshing…' : 'Refresh Metadata'}
-					</Button>
-					<Button
-						variant="outline"
-						size="sm"
-						disabled={scanningDownloads}
-						onclick={handleScanDownloads}
-					>
-						{scanningDownloads ? 'Scanning…' : 'Scan Downloads'}
-					</Button>
-					<Button size="sm" disabled={scanningLibrary} onclick={handleScanLibrary}>
-						{scanningLibrary ? 'Scanning…' : 'Scan Library'}
-					</Button>
-				</div>
-				{#if scanError}
-					<p class="text-xs text-red-500">{scanError}</p>
-				{:else if scanMessage}
-					<p class="text-xs text-muted-foreground">{scanMessage}</p>
-				{/if}
+			<div class="flex flex-wrap items-center gap-2 py-2">
+				<button type="button" class={toolbarChip} disabled={scanningLibrary} onclick={handleScanLibrary}>
+					{scanningLibrary ? 'Scanning…' : 'Scan Library'}
+				</button>
+				<button type="button" class={toolbarChip} disabled={scanningDownloads} onclick={handleScanDownloads}>
+					{scanningDownloads ? 'Scanning…' : 'Scan Downloads'}
+				</button>
+				<button type="button" class={toolbarChip} disabled={refreshingMetadata} onclick={handleRefreshMetadata}>
+					{refreshingMetadata ? 'Refreshing…' : 'Refresh Metadata'}
+				</button>
+				<button type="button" class={toolbarChip} disabled={loadingRenamePreview || renamingFiles} onclick={handleRenameFiles}>
+					{loadingRenamePreview ? 'Checking…' : 'Rename Files'}
+				</button>
+				<span class="ml-1.5 flex items-center gap-1.5 font-mono text-[10.5px]" style="color:{qbitColors[qbitStatus]}">
+					<span class="inline-block h-1.5 w-1.5 rounded-full" style="background:{qbitColors[qbitStatus]}"></span>
+					{qbitStatusLabel}
+				</span>
 			</div>
 		</header>
 
-		{#if visibleHealthChecks.length > 0}
-			<div class="border-b border-border">
-				{#each visibleHealthChecks as check (check.id)}
-					<div
-						class={cn(
-							'flex items-center justify-between gap-4 px-4 py-2 text-sm lg:px-6',
-							check.level === 'error'
-								? 'bg-destructive/15 text-destructive'
-								: 'bg-yellow-500/15 text-yellow-600 dark:text-yellow-400'
-						)}
-					>
-						<div class="flex items-center gap-2">
-							<AlertTriangle class="h-4 w-4 shrink-0" />
-							<span>{check.message}</span>
-						</div>
-					</div>
-				{/each}
-				<div class="flex justify-end px-4 py-1 lg:px-6">
-					<button
-						type="button"
-						class="text-xs text-muted-foreground hover:text-foreground"
-						onclick={dismissHealthChecks}
-					>
-						Dismiss
-					</button>
-				</div>
+		{#if scanError}
+			<div class="flex-none border-b border-border px-[22px] py-1.5 text-xs text-destructive">
+				{scanError}
 			</div>
 		{/if}
 
-		<main class="flex-1 overflow-auto p-4">
+		{#if visibleHealthChecks.length > 0}
+			<div class="flex-none">
+				{#each visibleHealthChecks as check (check.id)}
+					<div
+						class="flex items-center justify-between gap-4 border-b px-[22px] py-2 text-[12px]"
+						style={check.level === 'error'
+							? 'background:#2a1416;color:#e5484d;border-color:#3a1c1e'
+							: 'background:#2a2213;color:#f5a623;border-color:#3a2f18'}
+					>
+						<span>
+							<b class="mr-2 font-mono text-[9.5px] tracking-wide">{check.level.toUpperCase()}</b>
+							{check.message}
+						</span>
+						<button
+							type="button"
+							class="cursor-pointer opacity-70 hover:opacity-100"
+							onclick={() => dismissHealthCheck(check.id)}
+							aria-label="Dismiss"
+						>
+							&times;
+						</button>
+					</div>
+				{/each}
+			</div>
+		{/if}
+
+		{#if toast}
+			<div class="flex-none border-b px-[22px] py-2.5 text-[12px]" style="background:#122019;color:#3ecf8e;border-color:#1c3327">
+				{toast}
+			</div>
+		{/if}
+
+		<main class="flex-1 overflow-auto p-[22px]">
 			{@render children()}
 		</main>
 

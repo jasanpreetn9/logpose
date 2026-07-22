@@ -28,7 +28,15 @@ func sanitizeFilename(s string) string {
 }
 
 // MoveFile is the exported entry point used by the poller.
-func MoveFile(src, dst, libraryRoot string) error { return moveFile(src, dst, libraryRoot) }
+func MoveFile(src, dst, libraryRoot string) error { return moveFile(src, dst, libraryRoot, nil) }
+
+// MoveFileWithProgress is like MoveFile, but calls onProgress with the
+// cumulative bytes copied so far whenever the move falls back to a
+// cross-device copy (onProgress is never called for a same-filesystem
+// os.Rename, since that's effectively instant). onProgress may be nil.
+func MoveFileWithProgress(src, dst, libraryRoot string, onProgress func(bytesDone int64)) error {
+	return moveFile(src, dst, libraryRoot, onProgress)
+}
 
 // ComputeCRC32 hashes a file's content and returns its checksum as an
 // uppercase 8-character hex string, matching the format used in filenames
@@ -50,8 +58,9 @@ func ComputeCRC32(path string) (string, error) {
 
 // moveFile moves src to dst using a .tmp staging directory inside libraryRoot.
 // It handles cross-device moves (e.g. downloads on local disk, library on NAS)
-// by falling back to copy+delete when os.Rename returns EXDEV.
-func moveFile(src, dst, libraryRoot string) error {
+// by falling back to copy+delete when os.Rename returns EXDEV. onProgress, if
+// non-nil, is called with cumulative bytes copied during that fallback.
+func moveFile(src, dst, libraryRoot string, onProgress func(bytesDone int64)) error {
 	tmpDir := filepath.Join(libraryRoot, ".tmp")
 	if err := os.MkdirAll(tmpDir, 0755); err != nil {
 		return err
@@ -61,7 +70,7 @@ func moveFile(src, dst, libraryRoot string) error {
 	// Stage: move src → .tmp (may cross device boundary).
 	if err := os.Rename(src, tmpPath); err != nil {
 		if isEXDEV(err) {
-			if err := copyFile(src, tmpPath); err != nil {
+			if err := copyFile(src, tmpPath, onProgress); err != nil {
 				return err
 			}
 			os.Remove(src)
@@ -74,7 +83,11 @@ func moveFile(src, dst, libraryRoot string) error {
 	return os.Rename(tmpPath, dst)
 }
 
-func copyFile(src, dst string) error {
+// copyBufSize is chosen to give reasonably granular progress updates without
+// making excessive small syscalls on multi-GB video files.
+const copyBufSize = 4 * 1024 * 1024
+
+func copyFile(src, dst string, onProgress func(bytesDone int64)) error {
 	in, err := os.Open(src)
 	if err != nil {
 		return err
@@ -87,8 +100,25 @@ func copyFile(src, dst string) error {
 	}
 	defer out.Close()
 
-	if _, err := io.Copy(out, in); err != nil {
-		return err
+	buf := make([]byte, copyBufSize)
+	var done int64
+	for {
+		n, readErr := in.Read(buf)
+		if n > 0 {
+			if _, err := out.Write(buf[:n]); err != nil {
+				return err
+			}
+			done += int64(n)
+			if onProgress != nil {
+				onProgress(done)
+			}
+		}
+		if readErr == io.EOF {
+			break
+		}
+		if readErr != nil {
+			return readErr
+		}
 	}
 	return out.Sync()
 }
