@@ -25,6 +25,7 @@ async function request<T>(endpoint: string, options: RequestInit = {}): Promise<
 type RawVersion = {
     crc32: string;
     version: string;
+    released: string;
     file_path: string;
     status: string;
 };
@@ -68,6 +69,7 @@ function mapVersion(v: RawVersion): EpisodeVersion {
     return {
         crc32: v.crc32,
         version: v.version as EpisodeVersion['version'],
+        released: v.released,
         file_path: v.file_path || null,
         status: v.status as EpisodeVersion['status'],
     };
@@ -141,6 +143,14 @@ export const api = {
             method: 'POST',
             body: JSON.stringify({ crc32 })
         });
+    },
+
+    async deleteEpisodeVersion(crc32: string): Promise<void> {
+        await request(`/episodes/${crc32}`, { method: 'DELETE' });
+    },
+
+    async deleteEpisode(arc: number, episode: number): Promise<void> {
+        await request(`/episodes/${arc}/${episode}`, { method: 'DELETE' });
     },
 
     async getActivity(): Promise<ActivityEvent[]> {

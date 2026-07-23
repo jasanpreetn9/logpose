@@ -109,6 +109,18 @@ export function fullEpisodeStatus(ep: UnifiedEpisode): EpisodeStatus {
 	return 'missing';
 }
 
+/** Short badge label for a version, e.g. "normal" -> "N", "extended" -> "EXT". */
+export const versionBadgeLabel: Record<string, string> = {
+	normal: 'N',
+	extended: 'EXT'
+};
+
+/** Version labels (e.g. "normal", "extended") that currently have a file on disk for this episode.
+ * "upgradable" versions have no file (file_path is empty) — they're upgrade candidates, not downloads. */
+export function downloadedVersions(ep: UnifiedEpisode): string[] {
+	return ep.versions.filter((v) => v.status === 'imported').map((v) => v.version);
+}
+
 /** Monitored episodes that are missing, upgradable, or queued — shared by the Wanted page and the sidebar badge count. */
 export function wantedEpisodes(arcs: UnifiedArc[]) {
 	return arcs.flatMap((arc) =>

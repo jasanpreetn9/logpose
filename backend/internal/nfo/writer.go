@@ -25,8 +25,13 @@ type EpisodeNFO struct {
 
 func GenerateEpisodeNFO(ep library.Episode, version library.EpisodeVersion, meta metadata.Episode, arcTitle string, outputPath string) error {
 
+	title := ep.Title
+	if meta.File.Version == "extended" {
+		title += " (Extended)"
+	}
+
 	nfo := EpisodeNFO{
-		Title:       ep.Title,
+		Title:       title,
 		Plot:        ep.Description,
 		Season:      meta.Arc,     // One Pace arcs = seasons
 		Episode:     meta.Episode, // Part number

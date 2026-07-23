@@ -25,6 +25,7 @@ type UnifiedEpisode struct {
 type EpisodeVersion struct {
 	CRC32    string `json:"crc32"`
 	Version  string `json:"version"`
+	Released string `json:"released"`
 	FilePath string `json:"file_path"`
 	Status   string `json:"status"`
 }
@@ -63,8 +64,19 @@ func HandleGetAllEpisodes(meta *metadata.Client, store *library.Store, tracker *
 
 		episodes := meta.Episodes()
 
+		// meta.Episodes() is a map, so range order is randomized per request.
+		// Sort CRCs first so the "first" raw entry for a given (arc, episode) —
+		// which seeds the episode-level Title/Description/Released fields — is
+		// always the same one, instead of flickering between requests.
+		crcs := make([]string, 0, len(episodes))
+		for crc := range episodes {
+			crcs = append(crcs, crc)
+		}
+		sort.Strings(crcs)
+
 		store.Read(func(lib *library.Library) {
-			for crc, ep := range episodes {
+			for _, crc := range crcs {
+				ep := episodes[crc]
 				if _, ok := arcMap[ep.Arc]; !ok {
 					arcMeta, _ := meta.GetArcByNumber(ep.Arc)
 					arcMap[ep.Arc] = &arcBuild{
@@ -107,9 +119,10 @@ func HandleGetAllEpisodes(meta *metadata.Client, store *library.Store, tracker *
 				existing := &build.arc.Episodes[idx]
 
 				version := EpisodeVersion{
-					CRC32:   crc,
-					Version: ep.File.Version,
-					Status:  "missing",
+					CRC32:    crc,
+					Version:  ep.File.Version,
+					Released: ep.Released,
+					Status:   "missing",
 				}
 
 				if arcLib, ok := lib.Arcs[ep.Arc]; ok {
@@ -127,9 +140,13 @@ func HandleGetAllEpisodes(meta *metadata.Client, store *library.Store, tracker *
 								version.FilePath = v.FilePath
 								version.Status = v.DownloadStatus
 							} else if v.DownloadStatus == "imported" {
-								// A different CRC for this same version is imported — a genuine
-								// upgrade (e.g. a fixed/re-encoded release of the same cut).
-								version.Status = "upgradable"
+								// A different CRC for this same version is imported, but that's
+								// only a genuine upgrade if this candidate's release date is on
+								// or after the currently imported file's — an older release for
+								// the same version label isn't an upgrade.
+								if current, err := meta.GetEpisodeByCRC32(v.CRC32); err == nil && ep.Released >= current.Released {
+									version.Status = "upgradable"
+								}
 							}
 						}
 					}
@@ -155,6 +172,14 @@ func HandleGetAllEpisodes(meta *metadata.Client, store *library.Store, tracker *
 			arc.EpisodeCount = len(arc.Episodes)
 			for i := range arc.Episodes {
 				ep := &arc.Episodes[i]
+				// meta.Episodes() is a map, so the order versions were appended in is
+				// randomized per request — sort for a stable, predictable UI.
+				sort.Slice(ep.Versions, func(i, j int) bool {
+					if ep.Versions[i].Version != ep.Versions[j].Version {
+						return ep.Versions[i].Version < ep.Versions[j].Version
+					}
+					return ep.Versions[i].CRC32 < ep.Versions[j].CRC32
+				})
 				for _, v := range ep.Versions {
 					if v.Status != "missing" && v.Status != "queued" {
 						ep.Downloaded = true
