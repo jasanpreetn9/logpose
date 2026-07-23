@@ -140,9 +140,13 @@ func HandleGetAllEpisodes(meta *metadata.Client, store *library.Store, tracker *
 								version.FilePath = v.FilePath
 								version.Status = v.DownloadStatus
 							} else if v.DownloadStatus == "imported" {
-								// A different CRC for this same version is imported — a genuine
-								// upgrade (e.g. a fixed/re-encoded release of the same cut).
-								version.Status = "upgradable"
+								// A different CRC for this same version is imported, but that's
+								// only a genuine upgrade if this candidate's release date is on
+								// or after the currently imported file's — an older release for
+								// the same version label isn't an upgrade.
+								if current, err := meta.GetEpisodeByCRC32(v.CRC32); err == nil && ep.Released >= current.Released {
+									version.Status = "upgradable"
+								}
 							}
 						}
 					}
