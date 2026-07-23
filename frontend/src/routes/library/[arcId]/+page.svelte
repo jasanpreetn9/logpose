@@ -12,7 +12,7 @@
 	const arcId = $derived(page.params.arcId);
 
 	let arcData = $state<UnifiedArc | null>(null);
-	let selectedEpisode = $state<UnifiedEpisode | null>(null);
+	let selectedEpisodeNumber = $state<number | null>(null);
 	let actionError = $state<string | null>(null);
 	let actionMessage = $state<string | null>(null);
 
@@ -24,6 +24,14 @@
 	$effect(() => {
 		arcData = $arcs.find((a) => a.arc.toString() === arcId) ?? null;
 	});
+
+	// Derived (not a snapshot) so the modal reflects fresh status after actions
+	// like downloading a version trigger a refresh, without needing to reopen it.
+	const selectedEpisode = $derived(
+		selectedEpisodeNumber !== null
+			? (arcData?.episodes.find((e) => e.episode === selectedEpisodeNumber) ?? null)
+			: null
+	);
 
 	async function refresh() {
 		const list = await api.getAllEpisodes();
@@ -239,7 +247,7 @@
 						<button
 							type="button"
 							class="cursor-pointer truncate text-left text-card-foreground"
-							onclick={() => (selectedEpisode = ep)}
+							onclick={() => (selectedEpisodeNumber = ep.episode)}
 						>
 							{ep.title}
 						</button>
@@ -292,6 +300,7 @@
 <!-- MODAL -->
 <EpisodeDetailsModal
 	open={selectedEpisode !== null}
-	onOpenChange={(open) => !open && (selectedEpisode = null)}
+	onOpenChange={(open) => !open && (selectedEpisodeNumber = null)}
 	episode={selectedEpisode}
+	onDownloaded={refresh}
 />
