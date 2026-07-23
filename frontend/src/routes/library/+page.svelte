@@ -3,6 +3,17 @@
 
 	const list = $derived($arcs);
 
+	const totalEpisodes = $derived(list.reduce((sum, arc) => sum + arc.episodeCount, 0));
+	const totalDownloaded = $derived(list.reduce((sum, arc) => sum + arc.episodesDownloaded, 0));
+	const arcsMonitored = $derived(list.filter((arc) => arc.monitored).length);
+	const overallPct = $derived(totalEpisodes > 0 ? (totalDownloaded / totalEpisodes) * 100 : 0);
+
+	function completionColor(pct: number) {
+		if (pct >= 100) return '#3ecf8e';
+		if (pct > 0) return '#f5a623';
+		return '#6b7280';
+	}
+
 	function thumbGradient(arc: UnifiedArc, pct: number) {
 		if (arc.status) return 'linear-gradient(135deg,#3a2f1c,#1c2028)';
 		if (pct === 0) return 'linear-gradient(135deg,#2a2028,#1c2028)';
@@ -29,6 +40,28 @@
 		return langs.length > 3 ? `${langs.slice(0, 3).join(', ')} +${langs.length - 3}` : subtitleLanguages;
 	}
 </script>
+
+<div class="mb-4 rounded-md border border-border bg-card p-4">
+	<div class="mb-3 text-[17px] font-bold text-card-foreground">Library</div>
+	<div class="grid grid-cols-2 gap-[11px] text-[11.5px] sm:grid-cols-4">
+		<div>
+			<div class="mb-0.5 text-[10px] text-muted-foreground">ARCS</div>
+			<div class="font-mono text-card-foreground">{list.length}</div>
+		</div>
+		<div>
+			<div class="mb-0.5 text-[10px] text-muted-foreground">ARCS MONITORED</div>
+			<div class="font-mono text-card-foreground">{arcsMonitored}/{list.length}</div>
+		</div>
+		<div>
+			<div class="mb-0.5 text-[10px] text-muted-foreground">EPISODES</div>
+			<div class="font-mono" style="color:{completionColor(overallPct)}">{totalDownloaded}/{totalEpisodes}</div>
+		</div>
+		<div>
+			<div class="mb-0.5 text-[10px] text-muted-foreground">COMPLETION</div>
+			<div class="font-mono" style="color:{completionColor(overallPct)}">{Math.round(overallPct)}%</div>
+		</div>
+	</div>
+</div>
 
 <div class="grid gap-3" style="grid-template-columns: repeat(auto-fill, minmax(250px, 1fr))">
 	{#each list as arc (arc.arc)}
