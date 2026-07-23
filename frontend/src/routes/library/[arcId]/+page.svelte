@@ -20,6 +20,9 @@
 	let downloadingMonitored = $state(false);
 	let verifyingNFOs = $state(false);
 	let downloadingCrc = $state<Set<string>>(new Set());
+	let deletingEpisode = $state<Set<number>>(new Set());
+	let armedEpisode = $state<number | null>(null);
+	let armedEpisodeTimer: ReturnType<typeof setTimeout> | null = null;
 
 	$effect(() => {
 		arcData = $arcs.find((a) => a.arc.toString() === arcId) ?? null;
@@ -72,6 +75,33 @@
 			const next = new Set(downloadingCrc);
 			next.delete(target.crc32);
 			downloadingCrc = next;
+		}
+	}
+
+	function handleDeleteEpisodeClick(ep: UnifiedEpisode) {
+		if (armedEpisode !== ep.episode) {
+			armedEpisode = ep.episode;
+			if (armedEpisodeTimer) clearTimeout(armedEpisodeTimer);
+			armedEpisodeTimer = setTimeout(() => (armedEpisode = null), 3000);
+			return;
+		}
+		if (armedEpisodeTimer) clearTimeout(armedEpisodeTimer);
+		armedEpisode = null;
+		deleteEpisode(ep);
+	}
+
+	async function deleteEpisode(ep: UnifiedEpisode) {
+		deletingEpisode = new Set([...deletingEpisode, ep.episode]);
+		actionError = null;
+		try {
+			await api.deleteEpisode(ep.arc, ep.episode);
+			await refresh();
+		} catch (e) {
+			actionError = e instanceof Error ? e.message : 'Delete failed';
+		} finally {
+			const next = new Set(deletingEpisode);
+			next.delete(ep.episode);
+			deletingEpisode = next;
 		}
 	}
 
@@ -224,7 +254,7 @@
 			<div class="overflow-hidden rounded-md border border-border">
 				<div
 					class="grid gap-2 border-b border-border px-3.5 py-2 font-mono text-[10px] text-muted-foreground"
-					style="grid-template-columns: 44px 1fr 100px 90px 130px 46px"
+					style="grid-template-columns: 44px 1fr 100px 90px 130px 60px 46px"
 				>
 					<div>EP</div>
 					<div>TITLE</div>
@@ -232,16 +262,19 @@
 					<div>STATUS</div>
 					<div>ACTION</div>
 					<div></div>
+					<div></div>
 				</div>
 				{#each arcData.episodes as ep (ep.episode)}
 					{@const status = fullEpisodeStatus(ep)}
 					{@const meta = episodeStatusMeta[status]}
 					{@const action = actionFor(ep)}
 					{@const downloading = ep.versions.some((v) => downloadingCrc.has(v.crc32))}
-						{@const versions = downloadedVersions(ep)}
+					{@const versions = downloadedVersions(ep)}
+					{@const deleting = deletingEpisode.has(ep.episode)}
+					{@const armed = armedEpisode === ep.episode}
 					<div
 						class="grid items-center gap-2 border-b border-[#20242c] px-3.5 py-2.5 text-[12.5px] last:border-b-0"
-						style="grid-template-columns: 44px 1fr 100px 90px 130px 46px"
+						style="grid-template-columns: 44px 1fr 100px 90px 130px 60px 46px"
 					>
 						<div class="font-mono text-muted-foreground">{String(ep.episode).padStart(2, '0')}</div>
 						<button
@@ -279,6 +312,19 @@
 								</button>
 							{/if}
 						</div>
+						<div>
+							{#if ep.downloaded}
+								<button
+									type="button"
+									class="w-full cursor-pointer rounded py-1 text-center text-[11px] font-semibold disabled:cursor-not-allowed disabled:opacity-60"
+									style={armed ? 'color:#e5484d;background:#2a1416' : 'color:#8992a0;background:#20242b'}
+									disabled={deleting}
+									onclick={() => handleDeleteEpisodeClick(ep)}
+								>
+									{deleting ? 'Deleting…' : armed ? 'Confirm?' : 'Delete'}
+								</button>
+							{/if}
+						</div>
 						<div class="flex justify-end">
 							<Switch
 								size="sm"
@@ -303,4 +349,5 @@
 	onOpenChange={(open) => !open && (selectedEpisodeNumber = null)}
 	episode={selectedEpisode}
 	onDownloaded={refresh}
+	onDeleted={refresh}
 />

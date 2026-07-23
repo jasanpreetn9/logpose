@@ -38,6 +38,8 @@ func RegisterRoutes(
 		api.Get("/episodes/all", HandleGetAllEpisodes(meta, store, tracker))
 		api.Get("/episodes/{crc}", HandleGetEpisode(meta))
 		api.Post("/episodes/monitor", HandleMonitorEpisode(meta, store))
+		api.Delete("/episodes/{crc}", HandleDeleteEpisodeVersion(store))
+		api.Delete("/episodes/{arc}/{episode}", HandleDeleteEpisode(store))
 
 		api.Post("/download/add", HandleAddToQbit(meta, qb, acts, tracker, cfg.QBittorrent.Enabled))
 

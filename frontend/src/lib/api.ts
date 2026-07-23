@@ -145,6 +145,14 @@ export const api = {
         });
     },
 
+    async deleteEpisodeVersion(crc32: string): Promise<void> {
+        await request(`/episodes/${crc32}`, { method: 'DELETE' });
+    },
+
+    async deleteEpisode(arc: number, episode: number): Promise<void> {
+        await request(`/episodes/${arc}/${episode}`, { method: 'DELETE' });
+    },
+
     async getActivity(): Promise<ActivityEvent[]> {
         return request<ActivityEvent[]>('/activity');
     },

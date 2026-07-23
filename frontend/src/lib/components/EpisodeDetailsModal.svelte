@@ -7,29 +7,61 @@
 		open,
 		onOpenChange,
 		episode,
-		onDownloaded
+		onDownloaded,
+		onDeleted
 	}: {
 		open: boolean;
 		onOpenChange: (open: boolean) => void;
 		episode: UnifiedEpisode | null;
 		onDownloaded?: () => void;
+		onDeleted?: () => void;
 	} = $props();
 
 	let downloadingCrc = $state<Set<string>>(new Set());
-	let downloadError = $state<string | null>(null);
+	let deletingCrc = $state<Set<string>>(new Set());
+	let armedCrc = $state<string | null>(null);
+	let actionError = $state<string | null>(null);
+	let armedTimer: ReturnType<typeof setTimeout> | null = null;
 
 	async function downloadVersion(crc32: string) {
 		downloadingCrc = new Set([...downloadingCrc, crc32]);
-		downloadError = null;
+		actionError = null;
 		try {
 			await api.downloadEpisode(crc32);
 			onDownloaded?.();
 		} catch (e) {
-			downloadError = e instanceof Error ? e.message : 'Download failed';
+			actionError = e instanceof Error ? e.message : 'Download failed';
 		} finally {
 			const next = new Set(downloadingCrc);
 			next.delete(crc32);
 			downloadingCrc = next;
+		}
+	}
+
+	function handleDeleteClick(crc32: string) {
+		if (armedCrc !== crc32) {
+			armedCrc = crc32;
+			if (armedTimer) clearTimeout(armedTimer);
+			armedTimer = setTimeout(() => (armedCrc = null), 3000);
+			return;
+		}
+		if (armedTimer) clearTimeout(armedTimer);
+		armedCrc = null;
+		deleteVersion(crc32);
+	}
+
+	async function deleteVersion(crc32: string) {
+		deletingCrc = new Set([...deletingCrc, crc32]);
+		actionError = null;
+		try {
+			await api.deleteEpisodeVersion(crc32);
+			onDeleted?.();
+		} catch (e) {
+			actionError = e instanceof Error ? e.message : 'Delete failed';
+		} finally {
+			const next = new Set(deletingCrc);
+			next.delete(crc32);
+			deletingCrc = next;
 		}
 	}
 </script>
@@ -50,8 +82,8 @@
 				{episode.description || 'No description available.'}
 			</p>
 
-			{#if downloadError}
-				<p class="text-[11.5px] text-destructive">{downloadError}</p>
+			{#if actionError}
+				<p class="text-[11.5px] text-destructive">{actionError}</p>
 			{/if}
 
 			<div>
@@ -61,6 +93,8 @@
 						{@const meta = episodeStatusMeta[version.status]}
 						{@const canDownload = version.status === 'missing' || version.status === 'upgradable'}
 						{@const downloading = downloadingCrc.has(version.crc32)}
+						{@const deleting = deletingCrc.has(version.crc32)}
+						{@const armed = armedCrc === version.crc32}
 						<div class="rounded-[5px] border border-border bg-background p-2.5">
 							<div class="mb-1 flex items-center justify-between gap-2">
 								<div class="flex items-center gap-1.5">
@@ -78,6 +112,18 @@
 										onclick={() => downloadVersion(version.crc32)}
 									>
 										{downloading ? 'Queuing…' : 'Download'}
+									</button>
+								{:else if version.file_path}
+									<button
+										type="button"
+										class="cursor-pointer rounded px-2 py-0.5 text-[10.5px] font-semibold disabled:cursor-not-allowed disabled:opacity-60"
+										style={armed
+											? 'color:#e5484d;background:#2a1416'
+											: 'color:#8992a0;background:#20242b'}
+										disabled={deleting}
+										onclick={() => handleDeleteClick(version.crc32)}
+									>
+										{deleting ? 'Deleting…' : armed ? 'Confirm?' : 'Delete'}
 									</button>
 								{/if}
 							</div>
