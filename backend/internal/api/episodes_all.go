@@ -64,8 +64,19 @@ func HandleGetAllEpisodes(meta *metadata.Client, store *library.Store, tracker *
 
 		episodes := meta.Episodes()
 
+		// meta.Episodes() is a map, so range order is randomized per request.
+		// Sort CRCs first so the "first" raw entry for a given (arc, episode) —
+		// which seeds the episode-level Title/Description/Released fields — is
+		// always the same one, instead of flickering between requests.
+		crcs := make([]string, 0, len(episodes))
+		for crc := range episodes {
+			crcs = append(crcs, crc)
+		}
+		sort.Strings(crcs)
+
 		store.Read(func(lib *library.Library) {
-			for crc, ep := range episodes {
+			for _, crc := range crcs {
+				ep := episodes[crc]
 				if _, ok := arcMap[ep.Arc]; !ok {
 					arcMeta, _ := meta.GetArcByNumber(ep.Arc)
 					arcMap[ep.Arc] = &arcBuild{
@@ -157,6 +168,14 @@ func HandleGetAllEpisodes(meta *metadata.Client, store *library.Store, tracker *
 			arc.EpisodeCount = len(arc.Episodes)
 			for i := range arc.Episodes {
 				ep := &arc.Episodes[i]
+				// meta.Episodes() is a map, so the order versions were appended in is
+				// randomized per request — sort for a stable, predictable UI.
+				sort.Slice(ep.Versions, func(i, j int) bool {
+					if ep.Versions[i].Version != ep.Versions[j].Version {
+						return ep.Versions[i].Version < ep.Versions[j].Version
+					}
+					return ep.Versions[i].CRC32 < ep.Versions[j].CRC32
+				})
 				for _, v := range ep.Versions {
 					if v.Status != "missing" && v.Status != "queued" {
 						ep.Downloaded = true
