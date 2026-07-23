@@ -25,6 +25,7 @@ async function request<T>(endpoint: string, options: RequestInit = {}): Promise<
 type RawVersion = {
     crc32: string;
     version: string;
+    released: string;
     file_path: string;
     status: string;
 };
@@ -68,6 +69,7 @@ function mapVersion(v: RawVersion): EpisodeVersion {
     return {
         crc32: v.crc32,
         version: v.version as EpisodeVersion['version'],
+        released: v.released,
         file_path: v.file_path || null,
         status: v.status as EpisodeVersion['status'],
     };

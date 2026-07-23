@@ -25,6 +25,7 @@ type UnifiedEpisode struct {
 type EpisodeVersion struct {
 	CRC32    string `json:"crc32"`
 	Version  string `json:"version"`
+	Released string `json:"released"`
 	FilePath string `json:"file_path"`
 	Status   string `json:"status"`
 }
@@ -107,9 +108,10 @@ func HandleGetAllEpisodes(meta *metadata.Client, store *library.Store, tracker *
 				existing := &build.arc.Episodes[idx]
 
 				version := EpisodeVersion{
-					CRC32:   crc,
-					Version: ep.File.Version,
-					Status:  "missing",
+					CRC32:    crc,
+					Version:  ep.File.Version,
+					Released: ep.Released,
+					Status:   "missing",
 				}
 
 				if arcLib, ok := lib.Arcs[ep.Arc]; ok {

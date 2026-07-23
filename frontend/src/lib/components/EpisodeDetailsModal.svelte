@@ -41,7 +41,9 @@
 									{meta.label}
 								</span>
 							</div>
-							<div class="font-mono text-[10.5px] text-muted-foreground">CRC32 {version.crc32}</div>
+							<div class="font-mono text-[10.5px] text-muted-foreground">
+								CRC32 {version.crc32} &middot; Released {version.released}
+							</div>
 							{#if version.file_path}
 								<div class="mt-0.5 break-all font-mono text-[10px] text-muted-foreground">{version.file_path}</div>
 							{/if}

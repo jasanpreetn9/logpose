@@ -13,6 +13,7 @@ type UnifiedEpisode = {
 type EpisodeVersion = {
     crc32: string;
     version: "normal" | "extended";
+    released: string;
     file_path: string | null;
     status: "imported" | "missing" | "upgradable" | "queued" | "importing";
 }
