@@ -6,7 +6,7 @@
 	import { page } from '$app/state';
 	import { arcs } from '$lib/stores';
 	import { api } from '$lib/api';
-	import { episodeStatusMeta, fullEpisodeStatus } from '$lib/statusStyles';
+	import { episodeStatusMeta, fullEpisodeStatus, downloadedVersions, versionBadgeLabel } from '$lib/statusStyles';
 	import { cn } from '$lib/utils';
 
 	const arcId = $derived(page.params.arcId);
@@ -230,6 +230,7 @@
 					{@const meta = episodeStatusMeta[status]}
 					{@const action = actionFor(ep)}
 					{@const downloading = ep.versions.some((v) => downloadingCrc.has(v.crc32))}
+						{@const versions = downloadedVersions(ep)}
 					<div
 						class="grid items-center gap-2 border-b border-[#20242c] px-3.5 py-2.5 text-[12.5px] last:border-b-0"
 						style="grid-template-columns: 44px 1fr 100px 90px 130px 46px"
@@ -243,10 +244,19 @@
 							{ep.title}
 						</button>
 						<div class="font-mono text-[11px] text-muted-foreground">{ep.released}</div>
-						<div>
+						<div class="flex items-center gap-1">
 							<span class="rounded-[2px] px-1.5 py-0.5 font-mono text-[10px]" style="color:{meta.color};background:{meta.bg}">
 								{meta.label}
 							</span>
+							{#each versions as v}
+								<span
+									class="rounded-[2px] px-1 py-0.5 font-mono text-[9px] text-muted-foreground"
+									style="background:#20242b"
+									title={v}
+								>
+									{versionBadgeLabel[v] ?? v}
+								</span>
+							{/each}
 						</div>
 						<div>
 							{#if action}
