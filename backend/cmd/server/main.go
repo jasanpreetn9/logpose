@@ -52,7 +52,7 @@ func main() {
 
 	metaClient := metadata.NewClient(cfg.Metadata.EpisodesURL, cfg.Metadata.ArcsURL)
 	if err := metaClient.Refresh(); err != nil {
-		log.Fatalf("Failed to load metadata: %v", err)
+		log.Printf("Failed to load metadata at startup: %v", err)
 	}
 
 	hub := sse.NewHub()
