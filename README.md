@@ -101,6 +101,17 @@ docker compose pull
 docker compose up -d --build
 ```
 
+### Renaming the backend service or changing its port
+
+The frontend's nginx reaches the backend over the Docker network using the service name and port — by default `backend:8989`, matching this repo's `docker-compose.yml`. If you rename the `backend` service (e.g. to fit into an existing compose stack) or change its listen port (`config.yml`'s `port`, or the `OP_PORT` env var), set matching environment variables on the `frontend` service:
+
+```yaml
+frontend:
+  environment:
+    BACKEND_HOST: my-backend-service-name
+    BACKEND_PORT: "9000"
+```
+
 ---
 
 ## Manual setup
@@ -131,7 +142,11 @@ npm install
 npm run dev
 ```
 
-The Vite dev server proxies `/api` to `http://localhost:8989` automatically.
+The Vite dev server proxies `/api` to `http://localhost:8989` automatically. If the backend runs on a different host or port, override with:
+
+```bash
+VITE_API_URL=http://your-backend-host:9000 npm run dev
+```
 
 ---
 
@@ -175,7 +190,7 @@ onepace-library/
     │       ├── activity/         # Live activity feed
     │       ├── history/          # Import history
     │       └── settings/         # Runtime config editor
-    ├── nginx.conf
+    ├── nginx.conf.template
     ├── Dockerfile
     └── package.json
 ```

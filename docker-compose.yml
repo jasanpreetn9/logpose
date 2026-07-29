@@ -19,6 +19,12 @@ services:
     image: ghcr.io/jasanpreetn9/logpose-frontend:latest
     build: ./frontend          # used by `docker compose up --build` for local dev
     restart: unless-stopped
+    # Only needed if you renamed the backend service above or changed its
+    # listen port (config.yml's `port` / the OP_PORT env var) — defaults
+    # already match this file as written.
+    # environment:
+    #   BACKEND_HOST: backend
+    #   BACKEND_PORT: "8989"
     ports:
       - "3000:80"
     depends_on:
