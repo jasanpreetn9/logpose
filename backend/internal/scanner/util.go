@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"strings"
 	"syscall"
+	"time"
 )
 
 // normalizePath makes paths consistent for JSON output.
@@ -54,6 +55,29 @@ func ComputeCRC32(path string) (string, error) {
 		return "", err
 	}
 	return fmt.Sprintf("%08X", h.Sum32()), nil
+}
+
+// fileStabilityWait is how long to wait between size checks when deciding
+// whether a file has finished being written to.
+const fileStabilityWait = 2 * time.Second
+
+// isFileStable reports whether a file's size holds steady across a short
+// wait, meaning it's safe to move/copy. Without this check, a file whose
+// name already matches a known episode (torrent clients often preallocate
+// the final filename before the download completes) can get imported —
+// and its source deleted — while it's still being written, corrupting the
+// download and sending qBittorrent into a recreate/re-import retry loop.
+func isFileStable(path string) bool {
+	before, err := os.Stat(path)
+	if err != nil {
+		return false
+	}
+	time.Sleep(fileStabilityWait)
+	after, err := os.Stat(path)
+	if err != nil {
+		return false
+	}
+	return before.Size() == after.Size() && before.ModTime().Equal(after.ModTime())
 }
 
 // moveFile moves src to dst using a .tmp staging directory inside libraryRoot.
