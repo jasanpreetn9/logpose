@@ -48,6 +48,11 @@ func ScanDownloads(downloadRoot, libraryRoot string, lib *library.Library, meta 
 			return nil
 		}
 
+		if !isFileStable(path) {
+			log.Printf("Skipping %s: still being written", name)
+			return nil
+		}
+
 		arcTitle := meta.GetArcTitle(epMeta.Arc)
 
 		arcFolder := filepath.Join(
