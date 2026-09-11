@@ -76,7 +76,9 @@
 		{#if preview}
 			<div class="mb-3.5 rounded border border-border bg-background p-3 text-[12px]">
 				<div class="mb-1.5 font-semibold text-card-foreground">{preview.title}</div>
-				<div class="mb-0.5 truncate font-mono text-[10.5px] text-destructive line-through">{file?.name}</div>
+				<div class="mb-0.5 truncate font-mono text-[10.5px] text-destructive line-through">
+					{file?.name}
+				</div>
 				<div class="truncate font-mono text-[10.5px]" style="color:#3ecf8e">
 					{preview.destFolder}/{preview.destFilename}
 				</div>

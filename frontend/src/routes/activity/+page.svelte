@@ -35,19 +35,30 @@
 		{#each $activity as ev (ev.id)}
 			{@const meta = activityTypeStyle(ev.type)}
 			<div class="flex items-start gap-3 bg-card px-4 py-2.5">
-				<span class="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full" style="background:{ev.success ? meta.color : '#e5484d'}"></span>
-				<span class="w-[110px] shrink-0 pt-px font-mono text-[9.5px]" style="color:{ev.success ? meta.color : '#e5484d'}">
+				<span
+					class="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full"
+					style="background:{ev.success ? meta.color : '#e5484d'}"
+				></span>
+				<span
+					class="w-[110px] shrink-0 pt-px font-mono text-[9.5px]"
+					style="color:{ev.success ? meta.color : '#e5484d'}"
+				>
 					{meta.label}
 				</span>
 				<div class="min-w-0 flex-1">
 					<div class="text-[12.5px] text-card-foreground">{ev.message}</div>
 					{#if ev.details}
-						<div class="mt-0.5 truncate font-mono text-[10.5px] text-muted-foreground" title={ev.details}>
+						<div
+							class="mt-0.5 truncate font-mono text-[10.5px] text-muted-foreground"
+							title={ev.details}
+						>
 							{ev.details}
 						</div>
 					{/if}
 				</div>
-				<span class="shrink-0 font-mono text-[10px] text-muted-foreground">{fmtRelativeTime(ev.timestamp)}</span>
+				<span class="shrink-0 font-mono text-[10px] text-muted-foreground"
+					>{fmtRelativeTime(ev.timestamp)}</span
+				>
 			</div>
 		{/each}
 	</div>

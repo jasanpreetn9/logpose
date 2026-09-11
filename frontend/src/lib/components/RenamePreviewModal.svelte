@@ -41,8 +41,8 @@
 				{#if renames.length === 0}
 					All {total} recognized files already have the correct name.
 				{:else}
-					{renames.length} of {total} recognized files will be renamed. Sidecar .nfo and thumbnail
-					files are moved along with each video.
+					{renames.length} of {total} recognized files will be renamed. Sidecar .nfo and thumbnail files
+					are moved along with each video.
 				{/if}
 			</DialogDescription>
 		</DialogHeader>
@@ -55,7 +55,9 @@
 							<p class="mb-1 font-mono text-[10px] text-muted-foreground">{group.folder}</p>
 							<div class="flex flex-col gap-1.5">
 								{#each group.items as item}
-									<div class="rounded-[5px] border border-border bg-background px-2.5 py-2 font-mono text-[10.5px]">
+									<div
+										class="rounded-[5px] border border-border bg-background px-2.5 py-2 font-mono text-[10.5px]"
+									>
 										<p class="mb-0.5 break-all text-destructive line-through">{item.from}</p>
 										<p class="flex items-center gap-1.5 break-all" style="color:#3ecf8e">
 											<MoveRight class="h-3 w-3 shrink-0" />

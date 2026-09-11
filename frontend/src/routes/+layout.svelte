@@ -31,12 +31,19 @@
 
 	let qbEnabled = $state(true);
 	const qbitStatus = $derived<QbitStatus>(
-		!qbEnabled ? 'disabled' : healthChecks.some((c) => c.id === 'qbittorrent') ? 'error' : 'connected'
+		!qbEnabled
+			? 'disabled'
+			: healthChecks.some((c) => c.id === 'qbittorrent')
+				? 'error'
+				: 'connected'
 	);
 	const qbitStatusLabel = $derived(
-		{ disabled: 'QBIT DISABLED', error: 'QBIT ERROR', connected: 'QBIT CONNECTED', testing: 'QBIT TESTING' }[
-			qbitStatus
-		]
+		{
+			disabled: 'QBIT DISABLED',
+			error: 'QBIT ERROR',
+			connected: 'QBIT CONNECTED',
+			testing: 'QBIT TESTING'
+		}[qbitStatus]
 	);
 
 	let queueCount = $state(0);
@@ -99,7 +106,8 @@
 		activity.set(acts);
 		historyEvents.set(hist);
 
-		api.getVersion()
+		api
+			.getVersion()
 			.then((v) => (appVersion = v))
 			.catch(() => (appVersion = null));
 
@@ -256,7 +264,9 @@
 					onclick={() => sidebarOpen.set(false)}
 					class={cn(
 						'flex cursor-pointer items-center justify-between gap-2 border-l-2 px-[18px] py-[9px] text-[12.5px] font-semibold transition-colors',
-						active ? 'border-primary text-card-foreground bg-[#161a20]' : 'border-transparent text-[#8992a0] hover:text-card-foreground'
+						active
+							? 'border-primary text-card-foreground bg-[#161a20]'
+							: 'border-transparent text-[#8992a0] hover:text-card-foreground'
 					)}
 				>
 					<span>{item.label}</span>
@@ -289,8 +299,15 @@
 		<header
 			class="flex min-h-[52px] flex-none flex-wrap items-center justify-between gap-2 border-b border-border px-[22px]"
 		>
-			<div class="flex items-center gap-2 py-2.5 font-mono text-[12px] font-semibold text-card-foreground">
-				<button type="button" aria-label="Open sidebar" class="text-muted-foreground lg:hidden" onclick={() => sidebarOpen.set(true)}>
+			<div
+				class="flex items-center gap-2 py-2.5 font-mono text-[12px] font-semibold text-card-foreground"
+			>
+				<button
+					type="button"
+					aria-label="Open sidebar"
+					class="text-muted-foreground lg:hidden"
+					onclick={() => sidebarOpen.set(true)}
+				>
 					<Menu class="h-4 w-4" />
 				</button>
 				{#if showBack}
@@ -300,20 +317,46 @@
 			</div>
 
 			<div class="flex flex-wrap items-center gap-2 py-2">
-				<button type="button" class={toolbarChip} disabled={scanningLibrary} onclick={handleScanLibrary}>
+				<button
+					type="button"
+					class={toolbarChip}
+					disabled={scanningLibrary}
+					onclick={handleScanLibrary}
+				>
 					{scanningLibrary ? 'Scanning…' : 'Scan Library'}
 				</button>
-				<button type="button" class={toolbarChip} disabled={scanningDownloads} onclick={handleScanDownloads}>
+				<button
+					type="button"
+					class={toolbarChip}
+					disabled={scanningDownloads}
+					onclick={handleScanDownloads}
+				>
 					{scanningDownloads ? 'Scanning…' : 'Scan Downloads'}
 				</button>
-				<button type="button" class={toolbarChip} disabled={refreshingMetadata} onclick={handleRefreshMetadata}>
+				<button
+					type="button"
+					class={toolbarChip}
+					disabled={refreshingMetadata}
+					onclick={handleRefreshMetadata}
+				>
 					{refreshingMetadata ? 'Refreshing…' : 'Refresh Metadata'}
 				</button>
-				<button type="button" class={toolbarChip} disabled={loadingRenamePreview || renamingFiles} onclick={handleRenameFiles}>
+				<button
+					type="button"
+					class={toolbarChip}
+					disabled={loadingRenamePreview || renamingFiles}
+					onclick={handleRenameFiles}
+				>
 					{loadingRenamePreview ? 'Checking…' : 'Rename Files'}
 				</button>
-				<span class="ml-1.5 flex items-center gap-1.5 font-mono text-[10.5px]" style="color:{qbitColors[qbitStatus]}">
-					<span class="inline-block h-1.5 w-1.5 rounded-full" style="background:{qbitColors[qbitStatus]}"></span>
+				<span
+					class="ml-1.5 flex items-center gap-1.5 font-mono text-[10.5px]"
+					style="color:{qbitColors[qbitStatus]}"
+				>
+					<span
+						class="inline-block h-1.5 w-1.5 rounded-full"
+						style="background:{qbitColors[qbitStatus]}"
+					></span>
 					{qbitStatusLabel}
 				</span>
 			</div>
@@ -352,7 +395,10 @@
 		{/if}
 
 		{#if toast}
-			<div class="flex-none border-b px-[22px] py-2.5 text-[12px]" style="background:#122019;color:#3ecf8e;border-color:#1c3327">
+			<div
+				class="flex-none border-b px-[22px] py-2.5 text-[12px]"
+				style="background:#122019;color:#3ecf8e;border-color:#1c3327"
+			>
 				{toast}
 			</div>
 		{/if}

@@ -3,7 +3,10 @@
 
 export type EpisodeStatus = 'imported' | 'importing' | 'queued' | 'upgradable' | 'missing';
 
-export const episodeStatusMeta: Record<EpisodeStatus, { color: string; bg: string; label: string }> = {
+export const episodeStatusMeta: Record<
+	EpisodeStatus,
+	{ color: string; bg: string; label: string }
+> = {
 	imported: { color: '#3ecf8e', bg: '#122019', label: 'IMPORTED' },
 	importing: { color: '#f5a623', bg: '#2a2213', label: 'IMPORTING' },
 	queued: { color: '#4d9fff', bg: '#152233', label: 'QUEUED' },
@@ -128,7 +131,8 @@ export function wantedEpisodes(arcs: UnifiedArc[]) {
 			.filter(
 				(ep) =>
 					ep.monitored &&
-					(!ep.downloaded || ep.versions.some((v) => v.status === 'upgradable' || v.status === 'queued'))
+					(!ep.downloaded ||
+						ep.versions.some((v) => v.status === 'upgradable' || v.status === 'queued'))
 			)
 			.map((ep) => ({ arc, ep, status: episodeStatus(ep) }))
 	);
