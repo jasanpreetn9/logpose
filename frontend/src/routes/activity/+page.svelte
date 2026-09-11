@@ -1,6 +1,8 @@
 <script lang="ts">
+	import { Activity as ActivityIcon } from 'lucide-svelte';
 	import { api } from '$lib/api';
 	import { activity } from '$lib/stores';
+	import EmptyState from '$lib/components/EmptyState.svelte';
 	import { activityTypeStyle, fmtRelativeTime } from '$lib/statusStyles';
 
 	let refreshing = $state(false);
@@ -27,9 +29,11 @@
 </div>
 
 {#if $activity.length === 0}
-	<div class="py-12 text-center text-[12.5px] text-muted-foreground">
-		No activity yet. Try scanning your library or downloads.
-	</div>
+	<EmptyState
+		icon={ActivityIcon}
+		title="No activity yet"
+		description="Scans, imports, and metadata refreshes will appear here as they happen — try Scan Library or Scan Downloads above."
+	/>
 {:else}
 	<div class="flex flex-col gap-px overflow-hidden rounded-md border border-border bg-border">
 		{#each $activity as ev (ev.id)}
