@@ -21,3 +21,6 @@ frontend/build/
 # OS
 .DS_Store
 Thumbs.db
+
+# Local Claude Code config (launch.json, settings.local.json) — machine-specific
+.claude/
