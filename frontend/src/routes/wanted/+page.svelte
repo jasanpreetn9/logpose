@@ -59,7 +59,10 @@
 					</span>
 				</div>
 				<div>
-					<span class="rounded-[2px] px-1.5 py-0.5 font-mono text-[10px]" style="color:{meta.color};background:{meta.bg}">
+					<span
+						class="rounded-[2px] px-1.5 py-0.5 font-mono text-[10px]"
+						style="color:{meta.color};background:{meta.bg}"
+					>
 						{meta.label}
 					</span>
 				</div>
@@ -81,7 +84,11 @@
 							disabled={downloading.has(target.crc32)}
 							onclick={() => download(target.crc32)}
 						>
-							{downloading.has(target.crc32) ? 'Queuing…' : status === 'upgradable' ? 'Upgrade' : 'Download'}
+							{downloading.has(target.crc32)
+								? 'Queuing…'
+								: status === 'upgradable'
+									? 'Upgrade'
+									: 'Download'}
 						</button>
 						{#if errors.has(target.crc32)}
 							<p class="mt-1 text-[10.5px] text-destructive">{errors.get(target.crc32)}</p>

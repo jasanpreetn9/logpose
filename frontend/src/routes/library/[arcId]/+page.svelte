@@ -6,7 +6,12 @@
 	import { page } from '$app/state';
 	import { arcs } from '$lib/stores';
 	import { api } from '$lib/api';
-	import { episodeStatusMeta, fullEpisodeStatus, downloadedVersions, versionBadgeLabel } from '$lib/statusStyles';
+	import {
+		episodeStatusMeta,
+		fullEpisodeStatus,
+		downloadedVersions,
+		versionBadgeLabel
+	} from '$lib/statusStyles';
 	import { cn } from '$lib/utils';
 
 	const arcId = $derived(page.params.arcId);
@@ -55,7 +60,8 @@
 		if (status === 'imported') return null;
 		if (status === 'importing')
 			return { ...episodeStatusMeta.importing, label: 'Importing…', disabled: true };
-		if (status === 'queued') return { ...episodeStatusMeta.queued, label: 'Queued', disabled: true };
+		if (status === 'queued')
+			return { ...episodeStatusMeta.queued, label: 'Queued', disabled: true };
 		if (status === 'upgradable')
 			return { ...episodeStatusMeta.upgradable, label: 'Upgrade', disabled: false };
 		return { label: 'Download', disabled: false, color: '#4d9fff', bg: '#233042' };
@@ -164,7 +170,10 @@
 					<div class="mb-1 flex items-center gap-2">
 						<span class="text-[17px] font-bold text-card-foreground">{arcData.title}</span>
 						{#if arcData.status}
-							<span class="rounded-[2px] px-1.5 py-0.5 font-mono text-[10px]" style="color:#f5a623;background:#2a2213">
+							<span
+								class="rounded-[2px] px-1.5 py-0.5 font-mono text-[10px]"
+								style="color:#f5a623;background:#2a2213"
+							>
 								{arcData.status}
 							</span>
 						{/if}
@@ -179,7 +188,10 @@
 				<div class="flex flex-wrap gap-2">
 					<button
 						type="button"
-						class={cn(headerAction, 'bg-secondary text-muted-foreground hover:text-card-foreground')}
+						class={cn(
+							headerAction,
+							'bg-secondary text-muted-foreground hover:text-card-foreground'
+						)}
 						disabled={verifyingNFOs}
 						onclick={verifyNFOs}
 					>
@@ -197,7 +209,9 @@
 					<button
 						type="button"
 						class={cn(headerAction, 'font-bold')}
-						style={arcData.monitored ? 'color:#8992a0;background:#20242b' : 'color:#4d9fff;background:#233042'}
+						style={arcData.monitored
+							? 'color:#8992a0;background:#20242b'
+							: 'color:#4d9fff;background:#233042'}
 						disabled={monitoringArc}
 						onclick={toggleMonitorArc}
 					>
@@ -206,11 +220,14 @@
 				</div>
 			</div>
 
-			<div class="grid grid-cols-2 gap-[11px] border-t border-border pt-3 text-[11.5px] sm:grid-cols-4">
+			<div
+				class="grid grid-cols-2 gap-[11px] border-t border-border pt-3 text-[11.5px] sm:grid-cols-4"
+			>
 				<div>
 					<div class="mb-0.5 text-[10px] text-muted-foreground">MANGA CH.</div>
 					<div class="font-mono text-card-foreground">
-						{arcData.mangaChapters ?? '—'}{#if arcData.numberOfChapters} ({arcData.numberOfChapters}){/if}
+						{arcData.mangaChapters ?? '—'}{#if arcData.numberOfChapters}
+							({arcData.numberOfChapters}){/if}
 					</div>
 				</div>
 				<div>
@@ -286,7 +303,10 @@
 						</button>
 						<div class="font-mono text-[11px] text-muted-foreground">{ep.released}</div>
 						<div class="flex items-center gap-1">
-							<span class="rounded-[2px] px-1.5 py-0.5 font-mono text-[10px]" style="color:{meta.color};background:{meta.bg}">
+							<span
+								class="rounded-[2px] px-1.5 py-0.5 font-mono text-[10px]"
+								style="color:{meta.color};background:{meta.bg}"
+							>
 								{meta.label}
 							</span>
 							{#each versions as v}
@@ -317,7 +337,9 @@
 								<button
 									type="button"
 									class="w-full cursor-pointer rounded py-1 text-center text-[11px] font-semibold disabled:cursor-not-allowed disabled:opacity-60"
-									style={armed ? 'color:#e5484d;background:#2a1416' : 'color:#8992a0;background:#20242b'}
+									style={armed
+										? 'color:#e5484d;background:#2a1416'
+										: 'color:#8992a0;background:#20242b'}
 									disabled={deleting}
 									onclick={() => handleDeleteEpisodeClick(ep)}
 								>
@@ -326,11 +348,7 @@
 							{/if}
 						</div>
 						<div class="flex justify-end">
-							<Switch
-								size="sm"
-								checked={ep.monitored}
-								onCheckedChange={() => toggleMonitor(ep)}
-							/>
+							<Switch size="sm" checked={ep.monitored} onCheckedChange={() => toggleMonitor(ep)} />
 						</div>
 					</div>
 				{/each}

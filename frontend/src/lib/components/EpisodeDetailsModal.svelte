@@ -98,8 +98,13 @@
 						<div class="rounded-[5px] border border-border bg-background p-2.5">
 							<div class="mb-1 flex items-center justify-between gap-2">
 								<div class="flex items-center gap-1.5">
-									<span class="text-[12.5px] font-semibold capitalize text-card-foreground">{version.version}</span>
-									<span class="rounded-[2px] px-1.5 py-0.5 font-mono text-[10px]" style="color:{meta.color};background:{meta.bg}">
+									<span class="text-[12.5px] font-semibold capitalize text-card-foreground"
+										>{version.version}</span
+									>
+									<span
+										class="rounded-[2px] px-1.5 py-0.5 font-mono text-[10px]"
+										style="color:{meta.color};background:{meta.bg}"
+									>
 										{meta.label}
 									</span>
 								</div>
@@ -131,7 +136,9 @@
 								CRC32 {version.crc32} &middot; Released {version.released}
 							</div>
 							{#if version.file_path}
-								<div class="mt-0.5 break-all font-mono text-[10px] text-muted-foreground">{version.file_path}</div>
+								<div class="mt-0.5 break-all font-mono text-[10px] text-muted-foreground">
+									{version.file_path}
+								</div>
 							{/if}
 						</div>
 					{/each}
