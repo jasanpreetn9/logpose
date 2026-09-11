@@ -121,17 +121,23 @@
 				<label class={fieldLabel}>
 					Library Path
 					<input type="text" bind:value={cfg.libraryPath} class={fieldMono} />
-					{#if fieldErrors.libraryPath}<p class="mt-1 text-[10.5px] text-destructive">{fieldErrors.libraryPath}</p>{/if}
+					{#if fieldErrors.libraryPath}<p class="mt-1 text-[10.5px] text-destructive">
+							{fieldErrors.libraryPath}
+						</p>{/if}
 				</label>
 				<label class={fieldLabel}>
 					Download Path
 					<input type="text" bind:value={cfg.downloadPath} class={fieldMono} />
-					{#if fieldErrors.downloadPath}<p class="mt-1 text-[10.5px] text-destructive">{fieldErrors.downloadPath}</p>{/if}
+					{#if fieldErrors.downloadPath}<p class="mt-1 text-[10.5px] text-destructive">
+							{fieldErrors.downloadPath}
+						</p>{/if}
 				</label>
 				<label class={fieldLabel}>
 					Library JSON Path
 					<input type="text" bind:value={cfg.libraryJsonPath} class={fieldMono} />
-					{#if fieldErrors.libraryJsonPath}<p class="mt-1 text-[10.5px] text-destructive">{fieldErrors.libraryJsonPath}</p>{/if}
+					{#if fieldErrors.libraryJsonPath}<p class="mt-1 text-[10.5px] text-destructive">
+							{fieldErrors.libraryJsonPath}
+						</p>{/if}
 				</label>
 			</div>
 		</section>
@@ -143,23 +149,38 @@
 				<label class={fieldLabel}>
 					Episodes URL
 					<input type="text" bind:value={cfg.metadataEpisodesUrl} class={fieldMono} />
-					{#if fieldErrors.metadataEpisodesUrl}<p class="mt-1 text-[10.5px] text-destructive">{fieldErrors.metadataEpisodesUrl}</p>{/if}
+					{#if fieldErrors.metadataEpisodesUrl}<p class="mt-1 text-[10.5px] text-destructive">
+							{fieldErrors.metadataEpisodesUrl}
+						</p>{/if}
 				</label>
 				<label class={fieldLabel}>
 					Arcs URL
 					<input type="text" bind:value={cfg.metadataArcsUrl} class={fieldMono} />
-					{#if fieldErrors.metadataArcsUrl}<p class="mt-1 text-[10.5px] text-destructive">{fieldErrors.metadataArcsUrl}</p>{/if}
+					{#if fieldErrors.metadataArcsUrl}<p class="mt-1 text-[10.5px] text-destructive">
+							{fieldErrors.metadataArcsUrl}
+						</p>{/if}
 				</label>
 				<label class={fieldLabel}>
 					Refresh Interval
-					<input type="text" bind:value={cfg.metadataRefreshInterval} placeholder="e.g. 24h, 30m" class={fieldMono} />
+					<input
+						type="text"
+						bind:value={cfg.metadataRefreshInterval}
+						placeholder="e.g. 24h, 30m"
+						class={fieldMono}
+					/>
 					{#if fieldErrors.metadataRefreshInterval}
 						<p class="mt-1 text-[10.5px] text-destructive">{fieldErrors.metadataRefreshInterval}</p>
 					{/if}
 				</label>
 			</div>
 			<div class="mt-3.5 flex items-center gap-3">
-				<button type="button" class={accentButton} style="background:#233042" disabled={refreshingMeta} onclick={refreshMetadata}>
+				<button
+					type="button"
+					class={accentButton}
+					style="background:#233042"
+					disabled={refreshingMeta}
+					onclick={refreshMetadata}
+				>
 					{refreshingMeta ? 'Refreshing…' : 'Refresh Now'}
 				</button>
 				{#if refreshResult}
@@ -179,8 +200,15 @@
 			<div class="flex flex-col gap-2.5">
 				<label class={fieldLabel}>
 					Host
-					<input type="text" bind:value={cfg.qbHost} placeholder="http://127.0.0.1:8080/" class={fieldMono} />
-					{#if fieldErrors.qbHost}<p class="mt-1 text-[10.5px] text-destructive">{fieldErrors.qbHost}</p>{/if}
+					<input
+						type="text"
+						bind:value={cfg.qbHost}
+						placeholder="http://127.0.0.1:8080/"
+						class={fieldMono}
+					/>
+					{#if fieldErrors.qbHost}<p class="mt-1 text-[10.5px] text-destructive">
+							{fieldErrors.qbHost}
+						</p>{/if}
 				</label>
 				<label class={fieldLabel}>
 					Username
@@ -188,11 +216,22 @@
 				</label>
 				<label class={fieldLabel}>
 					Password
-					<input type="password" bind:value={qbPassword} placeholder="leave blank to keep current" class={field} />
+					<input
+						type="password"
+						bind:value={qbPassword}
+						placeholder="leave blank to keep current"
+						class={field}
+					/>
 				</label>
 			</div>
 			<div class="mt-3.5 flex items-center gap-3">
-				<button type="button" class={accentButton} style="background:#233042" disabled={testingQb} onclick={testQbit}>
+				<button
+					type="button"
+					class={accentButton}
+					style="background:#233042"
+					disabled={testingQb}
+					onclick={testQbit}
+				>
 					{testingQb ? 'Testing…' : 'Test Connection'}
 				</button>
 				{#if qbTestResult}
@@ -229,7 +268,9 @@
 						placeholder="blank disables Discord notifications"
 						class={fieldMono}
 					/>
-					{#if fieldErrors.discordWebhookUrl}<p class="mt-1 text-[10.5px] text-destructive">{fieldErrors.discordWebhookUrl}</p>{/if}
+					{#if fieldErrors.discordWebhookUrl}<p class="mt-1 text-[10.5px] text-destructive">
+							{fieldErrors.discordWebhookUrl}
+						</p>{/if}
 				</label>
 				<label class={fieldLabel}>
 					Jellyfin URL
@@ -239,11 +280,18 @@
 						placeholder="blank disables Jellyfin refresh"
 						class={fieldMono}
 					/>
-					{#if fieldErrors.jellyfinUrl}<p class="mt-1 text-[10.5px] text-destructive">{fieldErrors.jellyfinUrl}</p>{/if}
+					{#if fieldErrors.jellyfinUrl}<p class="mt-1 text-[10.5px] text-destructive">
+							{fieldErrors.jellyfinUrl}
+						</p>{/if}
 				</label>
 				<label class={fieldLabel}>
 					Jellyfin API Key
-					<input type="password" bind:value={jellyfinApiKey} placeholder="leave blank to keep current" class={field} />
+					<input
+						type="password"
+						bind:value={jellyfinApiKey}
+						placeholder="leave blank to keep current"
+						class={field}
+					/>
 				</label>
 			</div>
 		</section>
@@ -254,12 +302,19 @@
 			<label class={fieldLabel}>
 				Port
 				<input type="text" bind:value={cfg.port} class={fieldMono} style="max-width:140px" />
-				{#if fieldErrors.port}<p class="mt-1 text-[10.5px] text-destructive">{fieldErrors.port}</p>{/if}
+				{#if fieldErrors.port}<p class="mt-1 text-[10.5px] text-destructive">
+						{fieldErrors.port}
+					</p>{/if}
 			</label>
 		</section>
 
 		<div class="flex items-center gap-3">
-			<button type="submit" class={accentButton + ' font-bold'} style="background:#233042" disabled={saving}>
+			<button
+				type="submit"
+				class={accentButton + ' font-bold'}
+				style="background:#233042"
+				disabled={saving}
+			>
 				{saving ? 'Saving…' : 'Save Settings'}
 			</button>
 			{#if saved}

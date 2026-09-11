@@ -122,11 +122,18 @@
 			<div class="rounded-md border border-border bg-card px-4 py-3.5">
 				<div class="mb-2 flex items-center justify-between gap-2">
 					<div class="min-w-0">
-						<div class="truncate text-[13px] font-semibold text-card-foreground">{queueLabel(item)}</div>
-						<div class="mt-0.5 truncate font-mono text-[10px] text-muted-foreground">{item.name}</div>
+						<div class="truncate text-[13px] font-semibold text-card-foreground">
+							{queueLabel(item)}
+						</div>
+						<div class="mt-0.5 truncate font-mono text-[10px] text-muted-foreground">
+							{item.name}
+						</div>
 					</div>
 					<div class="flex shrink-0 items-center gap-3.5">
-						<span class="rounded px-1.5 py-0.5 font-mono text-[10.5px]" style="color:{state.color};background:{state.bg}">
+						<span
+							class="rounded px-1.5 py-0.5 font-mono text-[10.5px]"
+							style="color:{state.color};background:{state.bg}"
+						>
 							{state.label}
 						</span>
 						<button
@@ -141,10 +148,14 @@
 					</div>
 				</div>
 				<div class="mb-1.5 h-[5px] overflow-hidden rounded-full bg-[#262b34]">
-					<div class="h-full transition-[width] duration-300" style="width:{pct}%;background:{state.color}"></div>
+					<div
+						class="h-full transition-[width] duration-300"
+						style="width:{pct}%;background:{state.color}"
+					></div>
 				</div>
 				<div class="flex justify-between font-mono text-[10.5px] text-muted-foreground">
-					<span>{pct}%</span><span>{fmtSpeed(item.dlspeed)}</span><span>ETA {fmtEta(item.eta)}</span><span>{fmtBytes(item.size)}</span>
+					<span>{pct}%</span><span>{fmtSpeed(item.dlspeed)}</span><span>ETA {fmtEta(item.eta)}</span
+					><span>{fmtBytes(item.size)}</span>
 				</div>
 			</div>
 		{/each}
@@ -157,11 +168,15 @@
 {:else}
 	<div class="flex flex-col gap-2">
 		{#each unmatched as file (file.path)}
-			<div class="flex items-center justify-between gap-2.5 rounded-md border border-border bg-card px-4 py-2.5">
+			<div
+				class="flex items-center justify-between gap-2.5 rounded-md border border-border bg-card px-4 py-2.5"
+			>
 				<div class="min-w-0">
 					<div class="truncate font-mono text-[12.5px] text-card-foreground">{file.name}</div>
 					<div class="mt-0.5 text-[10.5px] text-muted-foreground">
-						{file.reason === 'unparseable' ? "Filename doesn't match a One Pace release" : 'Unknown CRC'}
+						{file.reason === 'unparseable'
+							? "Filename doesn't match a One Pace release"
+							: 'Unknown CRC'}
 						{#if file.crc32}&middot; CRC {file.crc32}{/if}
 					</div>
 				</div>

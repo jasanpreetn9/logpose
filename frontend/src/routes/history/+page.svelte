@@ -36,14 +36,21 @@
 			<div class="flex items-start gap-3 bg-card px-4 py-2.5">
 				<span class="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full" style="background:#3ecf8e"></span>
 				<div class="min-w-0 flex-1">
-					<div class="text-[12.5px] text-card-foreground">{ev.message.replace(/^Imported:\s*/, '')}</div>
+					<div class="text-[12.5px] text-card-foreground">
+						{ev.message.replace(/^Imported:\s*/, '')}
+					</div>
 					{#if ev.details}
-						<div class="mt-0.5 truncate font-mono text-[10.5px] text-muted-foreground" title={ev.details}>
+						<div
+							class="mt-0.5 truncate font-mono text-[10.5px] text-muted-foreground"
+							title={ev.details}
+						>
 							{ev.details}
 						</div>
 					{/if}
 				</div>
-				<span class="shrink-0 font-mono text-[10px] text-muted-foreground">{fmtRelativeTime(ev.timestamp)}</span>
+				<span class="shrink-0 font-mono text-[10px] text-muted-foreground"
+					>{fmtRelativeTime(ev.timestamp)}</span
+				>
 			</div>
 		{/each}
 	</div>

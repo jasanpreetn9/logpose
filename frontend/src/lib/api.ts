@@ -1,21 +1,21 @@
 const BASE_URL = '/api';
 
 async function request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
-    const res = await fetch(`${BASE_URL}${endpoint}`, {
-        headers: {
-            'Content-Type': 'application/json',
-            ...(options.headers ?? {})
-        },
-        ...options
-    });
+	const res = await fetch(`${BASE_URL}${endpoint}`, {
+		headers: {
+			'Content-Type': 'application/json',
+			...(options.headers ?? {})
+		},
+		...options
+	});
 
-    if (!res.ok) {
-        const text = await res.text();
-        console.error(`API Error ${res.status}:`, text);
-        throw new Error(text || `API error: ${res.status}`);
-    }
+	if (!res.ok) {
+		const text = await res.text();
+		console.error(`API Error ${res.status}:`, text);
+		throw new Error(text || `API error: ${res.status}`);
+	}
 
-    return res.json() as Promise<T>;
+	return res.json() as Promise<T>;
 }
 
 /* -------------------------------------------------------
@@ -23,42 +23,42 @@ async function request<T>(endpoint: string, options: RequestInit = {}): Promise<
 ------------------------------------------------------- */
 
 type RawVersion = {
-    crc32: string;
-    version: string;
-    released: string;
-    file_path: string;
-    status: string;
+	crc32: string;
+	version: string;
+	released: string;
+	file_path: string;
+	status: string;
 };
 
 type RawEpisode = {
-    arc: number;
-    episode: number;
-    title: string;
-    description: string;
-    released: string;
-    downloaded: boolean;
-    monitored: boolean;
-    versions: RawVersion[];
+	arc: number;
+	episode: number;
+	title: string;
+	description: string;
+	released: string;
+	downloaded: boolean;
+	monitored: boolean;
+	versions: RawVersion[];
 };
 
 type RawArc = {
-    arc: number;
-    title: string;
-    audio_languages: string;
-    subtitle_languages: string;
-    resolution: string;
-    status: string;
-    monitored: boolean;
-    manga_chapters: string;
-    number_of_chapters: string;
-    anime_episodes: string;
-    episodes_adapted: string;
-    filler_episodes: string;
-    time_saved_mins: string;
-    time_saved_percent: string;
-    episode_count: number;
-    episode_downloaded: number;
-    episodes: RawEpisode[];
+	arc: number;
+	title: string;
+	audio_languages: string;
+	subtitle_languages: string;
+	resolution: string;
+	status: string;
+	monitored: boolean;
+	manga_chapters: string;
+	number_of_chapters: string;
+	anime_episodes: string;
+	episodes_adapted: string;
+	filler_episodes: string;
+	time_saved_mins: string;
+	time_saved_percent: string;
+	episode_count: number;
+	episode_downloaded: number;
+	episodes: RawEpisode[];
 };
 
 /* -------------------------------------------------------
@@ -66,51 +66,51 @@ type RawArc = {
 ------------------------------------------------------- */
 
 function mapVersion(v: RawVersion): EpisodeVersion {
-    return {
-        crc32: v.crc32,
-        version: v.version as EpisodeVersion['version'],
-        released: v.released,
-        file_path: v.file_path || null,
-        status: v.status as EpisodeVersion['status'],
-    };
+	return {
+		crc32: v.crc32,
+		version: v.version as EpisodeVersion['version'],
+		released: v.released,
+		file_path: v.file_path || null,
+		status: v.status as EpisodeVersion['status']
+	};
 }
 
 function mapEpisode(ep: RawEpisode): UnifiedEpisode {
-    return {
-        arc: ep.arc,
-        episode: ep.episode,
-        title: ep.title,
-        description: ep.description,
-        released: ep.released,
-        downloaded: ep.downloaded,
-        monitored: ep.monitored,
-        versions: ep.versions.map(mapVersion),
-    };
+	return {
+		arc: ep.arc,
+		episode: ep.episode,
+		title: ep.title,
+		description: ep.description,
+		released: ep.released,
+		downloaded: ep.downloaded,
+		monitored: ep.monitored,
+		versions: ep.versions.map(mapVersion)
+	};
 }
 
 function mapArc(a: RawArc): UnifiedArc {
-    return {
-        arc: a.arc,
-        title: a.title,
-        audioLanguages: a.audio_languages,
-        subtitleLanguages: a.subtitle_languages,
-        resolution: a.resolution,
-        status: a.status,
-        monitored: a.monitored,
+	return {
+		arc: a.arc,
+		title: a.title,
+		audioLanguages: a.audio_languages,
+		subtitleLanguages: a.subtitle_languages,
+		resolution: a.resolution,
+		status: a.status,
+		monitored: a.monitored,
 
-        mangaChapters: a.manga_chapters || null,
-        numberOfChapters: a.number_of_chapters || null,
-        animeEpisodes: a.anime_episodes || null,
-        episodesAdapted: a.episodes_adapted || null,
-        fillerEpisodes: a.filler_episodes || null,
-        timeSavedMins: a.time_saved_mins || null,
-        timeSavedPercent: a.time_saved_percent ? a.time_saved_percent.replace(/%$/, '') : null,
+		mangaChapters: a.manga_chapters || null,
+		numberOfChapters: a.number_of_chapters || null,
+		animeEpisodes: a.anime_episodes || null,
+		episodesAdapted: a.episodes_adapted || null,
+		fillerEpisodes: a.filler_episodes || null,
+		timeSavedMins: a.time_saved_mins || null,
+		timeSavedPercent: a.time_saved_percent ? a.time_saved_percent.replace(/%$/, '') : null,
 
-        episodeCount: a.episode_count,
-        episodesDownloaded: a.episode_downloaded,
+		episodeCount: a.episode_count,
+		episodesDownloaded: a.episode_downloaded,
 
-        episodes: a.episodes.map(mapEpisode)
-    };
+		episodes: a.episodes.map(mapEpisode)
+	};
 }
 
 /* -------------------------------------------------------
@@ -118,154 +118,166 @@ function mapArc(a: RawArc): UnifiedArc {
 ------------------------------------------------------- */
 
 export const api = {
-    async getAllEpisodes(): Promise<UnifiedArc[]> {
-        const raw = await request<RawArc[]>('/episodes/all');
-        return raw.map(mapArc);
-    },
+	async getAllEpisodes(): Promise<UnifiedArc[]> {
+		const raw = await request<RawArc[]>('/episodes/all');
+		return raw.map(mapArc);
+	},
 
-    async scanLibrary(): Promise<void> {
-        await request('/scan/library', { method: 'POST' });
-    },
+	async scanLibrary(): Promise<void> {
+		await request('/scan/library', { method: 'POST' });
+	},
 
-    async scanDownloads(): Promise<void> {
-        await request('/scan/downloads', { method: 'POST' });
-    },
+	async scanDownloads(): Promise<void> {
+		await request('/scan/downloads', { method: 'POST' });
+	},
 
-    async toggleMonitor(arc: number, episode: number, monitored: boolean): Promise<void> {
-        await request('/episodes/monitor', {
-            method: 'POST',
-            body: JSON.stringify({ arc, episode, monitored })
-        });
-    },
+	async toggleMonitor(arc: number, episode: number, monitored: boolean): Promise<void> {
+		await request('/episodes/monitor', {
+			method: 'POST',
+			body: JSON.stringify({ arc, episode, monitored })
+		});
+	},
 
-    async downloadEpisode(crc32: string): Promise<void> {
-        await request('/download/add', {
-            method: 'POST',
-            body: JSON.stringify({ crc32 })
-        });
-    },
+	async downloadEpisode(crc32: string): Promise<void> {
+		await request('/download/add', {
+			method: 'POST',
+			body: JSON.stringify({ crc32 })
+		});
+	},
 
-    async deleteEpisodeVersion(crc32: string): Promise<void> {
-        await request(`/episodes/${crc32}`, { method: 'DELETE' });
-    },
+	async deleteEpisodeVersion(crc32: string): Promise<void> {
+		await request(`/episodes/${crc32}`, { method: 'DELETE' });
+	},
 
-    async deleteEpisode(arc: number, episode: number): Promise<void> {
-        await request(`/episodes/${arc}/${episode}`, { method: 'DELETE' });
-    },
+	async deleteEpisode(arc: number, episode: number): Promise<void> {
+		await request(`/episodes/${arc}/${episode}`, { method: 'DELETE' });
+	},
 
-    async getActivity(): Promise<ActivityEvent[]> {
-        return request<ActivityEvent[]>('/activity');
-    },
+	async getActivity(): Promise<ActivityEvent[]> {
+		return request<ActivityEvent[]>('/activity');
+	},
 
-    async getHistory(): Promise<ActivityEvent[]> {
-        return request<ActivityEvent[]>('/history');
-    },
+	async getHistory(): Promise<ActivityEvent[]> {
+		return request<ActivityEvent[]>('/history');
+	},
 
-    async getQueue(): Promise<QueueItem[]> {
-        return request<QueueItem[]>('/queue');
-    },
+	async getQueue(): Promise<QueueItem[]> {
+		return request<QueueItem[]>('/queue');
+	},
 
-    async removeFromQueue(hash: string): Promise<void> {
-        await request(`/queue/${hash}`, { method: 'DELETE' });
-    },
+	async removeFromQueue(hash: string): Promise<void> {
+		await request(`/queue/${hash}`, { method: 'DELETE' });
+	},
 
-    async getUnmatchedFiles(): Promise<UnmatchedFile[]> {
-        return request<UnmatchedFile[]>('/import/unmatched');
-    },
+	async getUnmatchedFiles(): Promise<UnmatchedFile[]> {
+		return request<UnmatchedFile[]>('/import/unmatched');
+	},
 
-    async previewManualImport(params: {
-        path: string;
-        arc: number;
-        episode: number;
-        version: string;
-    }): Promise<ManualImportPreview> {
-        const q = new URLSearchParams({
-            path: params.path,
-            arc: String(params.arc),
-            episode: String(params.episode),
-            version: params.version
-        });
-        return request<ManualImportPreview>(`/import/manual/preview?${q}`);
-    },
+	async previewManualImport(params: {
+		path: string;
+		arc: number;
+		episode: number;
+		version: string;
+	}): Promise<ManualImportPreview> {
+		const q = new URLSearchParams({
+			path: params.path,
+			arc: String(params.arc),
+			episode: String(params.episode),
+			version: params.version
+		});
+		return request<ManualImportPreview>(`/import/manual/preview?${q}`);
+	},
 
-    async confirmManualImport(params: {
-        path: string;
-        arc: number;
-        episode: number;
-        version: string;
-    }): Promise<{ status: string; title: string; path: string }> {
-        return request('/import/manual', {
-            method: 'POST',
-            body: JSON.stringify(params)
-        });
-    },
+	async confirmManualImport(params: {
+		path: string;
+		arc: number;
+		episode: number;
+		version: string;
+	}): Promise<{ status: string; title: string; path: string }> {
+		return request('/import/manual', {
+			method: 'POST',
+			body: JSON.stringify(params)
+		});
+	},
 
-    async previewRename(): Promise<{ total: number; renames: RenamePreviewItem[] }> {
-        return request('/library/rename/preview');
-    },
+	async previewRename(): Promise<{ total: number; renames: RenamePreviewItem[] }> {
+		return request('/library/rename/preview');
+	},
 
-    async renameFiles(): Promise<{ renamed: number; total: number }> {
-        return request('/library/rename', { method: 'POST' });
-    },
+	async renameFiles(): Promise<{ renamed: number; total: number }> {
+		return request('/library/rename', { method: 'POST' });
+	},
 
-    async getVersion(): Promise<string> {
-        const res = await request<{ version: string }>('/version');
-        return res.version;
-    },
+	async getVersion(): Promise<string> {
+		const res = await request<{ version: string }>('/version');
+		return res.version;
+	},
 
-    async getHealth(): Promise<{ ok: boolean; checks: HealthCheck[] }> {
-        return request('/health');
-    },
+	async getHealth(): Promise<{ ok: boolean; checks: HealthCheck[] }> {
+		return request('/health');
+	},
 
-    async monitorArc(arcId: number, monitored: boolean): Promise<void> {
-        await request(`/arcs/${arcId}/monitor`, {
-            method: 'POST',
-            body: JSON.stringify({ monitored })
-        });
-    },
+	async monitorArc(arcId: number, monitored: boolean): Promise<void> {
+		await request(`/arcs/${arcId}/monitor`, {
+			method: 'POST',
+			body: JSON.stringify({ monitored })
+		});
+	},
 
-    async downloadMonitored(arcId: number): Promise<{ queued: number; total: number }> {
-        return request(`/arcs/${arcId}/download-monitored`, { method: 'POST' });
-    },
+	async downloadMonitored(arcId: number): Promise<{ queued: number; total: number }> {
+		return request(`/arcs/${arcId}/download-monitored`, { method: 'POST' });
+	},
 
-    async verifyNFOs(arcId: number): Promise<{ updated: number; total: number }> {
-        return request(`/arcs/${arcId}/verify-nfo`, { method: 'POST' });
-    },
+	async verifyNFOs(arcId: number): Promise<{ updated: number; total: number }> {
+		return request(`/arcs/${arcId}/verify-nfo`, { method: 'POST' });
+	},
 
-    async refreshMetadata(): Promise<{ episodes: number; arcs: number; nfosUpdated: number; grabbed: number; lastUpdated: string }> {
-        return request('/metadata/refresh', { method: 'POST' });
-    },
+	async refreshMetadata(): Promise<{
+		episodes: number;
+		arcs: number;
+		nfosUpdated: number;
+		grabbed: number;
+		lastUpdated: string;
+	}> {
+		return request('/metadata/refresh', { method: 'POST' });
+	},
 
-    async getConfig(): Promise<AppConfig> {
-        return request<AppConfig>('/config');
-    },
+	async getConfig(): Promise<AppConfig> {
+		return request<AppConfig>('/config');
+	},
 
-    async updateConfig(patch: Partial<AppConfig> & { qbPassword?: string; jellyfinApiKey?: string }): Promise<{ errors?: Record<string, string>; error?: string }> {
-        const res = await fetch(`${BASE_URL}/config`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(patch)
-        });
-        // The backend returns JSON for validation errors but plain text for
-        // other failures — never assume the body parses.
-        const text = await res.text();
-        let body: { errors?: Record<string, string> } | null = null;
-        try {
-            body = JSON.parse(text);
-        } catch {
-            // non-JSON response
-        }
-        if (!res.ok) {
-            if (body?.errors) return { errors: body.errors };
-            return { error: text || `Save failed (${res.status})` };
-        }
-        return {};
-    },
+	async updateConfig(
+		patch: Partial<AppConfig> & { qbPassword?: string; jellyfinApiKey?: string }
+	): Promise<{ errors?: Record<string, string>; error?: string }> {
+		const res = await fetch(`${BASE_URL}/config`, {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify(patch)
+		});
+		// The backend returns JSON for validation errors but plain text for
+		// other failures — never assume the body parses.
+		const text = await res.text();
+		let body: { errors?: Record<string, string> } | null = null;
+		try {
+			body = JSON.parse(text);
+		} catch {
+			// non-JSON response
+		}
+		if (!res.ok) {
+			if (body?.errors) return { errors: body.errors };
+			return { error: text || `Save failed (${res.status})` };
+		}
+		return {};
+	},
 
-    async testQBittorrent(params: { host?: string; username?: string; password?: string }): Promise<{ ok: boolean; version?: string; error?: string }> {
-        return request('/qbittorrent/test', {
-            method: 'POST',
-            body: JSON.stringify(params)
-        });
-    }
+	async testQBittorrent(params: {
+		host?: string;
+		username?: string;
+		password?: string;
+	}): Promise<{ ok: boolean; version?: string; error?: string }> {
+		return request('/qbittorrent/test', {
+			method: 'POST',
+			body: JSON.stringify(params)
+		});
+	}
 };

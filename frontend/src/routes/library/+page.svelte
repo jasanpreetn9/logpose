@@ -37,7 +37,9 @@
 			.split(',')
 			.map((s) => s.trim())
 			.filter(Boolean);
-		return langs.length > 3 ? `${langs.slice(0, 3).join(', ')} +${langs.length - 3}` : subtitleLanguages;
+		return langs.length > 3
+			? `${langs.slice(0, 3).join(', ')} +${langs.length - 3}`
+			: subtitleLanguages;
 	}
 </script>
 
@@ -54,11 +56,15 @@
 		</div>
 		<div>
 			<div class="mb-0.5 text-[10px] text-muted-foreground">EPISODES</div>
-			<div class="font-mono" style="color:{completionColor(overallPct)}">{totalDownloaded}/{totalEpisodes}</div>
+			<div class="font-mono" style="color:{completionColor(overallPct)}">
+				{totalDownloaded}/{totalEpisodes}
+			</div>
 		</div>
 		<div>
 			<div class="mb-0.5 text-[10px] text-muted-foreground">COMPLETION</div>
-			<div class="font-mono" style="color:{completionColor(overallPct)}">{Math.round(overallPct)}%</div>
+			<div class="font-mono" style="color:{completionColor(overallPct)}">
+				{Math.round(overallPct)}%
+			</div>
 		</div>
 	</div>
 </div>
@@ -80,7 +86,10 @@
 			<div class="mb-1.5 flex items-center gap-1.5">
 				<div class="flex-1 text-[13.5px] font-semibold text-card-foreground">{arc.title}</div>
 				{#if arc.status}
-					<span class="rounded-[2px] px-1.5 py-0.5 font-mono text-[9.5px]" style="color:#f5a623;background:#2a2213">
+					<span
+						class="rounded-[2px] px-1.5 py-0.5 font-mono text-[9.5px]"
+						style="color:#f5a623;background:#2a2213"
+					>
 						{arc.status}
 					</span>
 				{/if}
