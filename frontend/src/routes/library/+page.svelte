@@ -14,16 +14,24 @@
 		return '#6b7280';
 	}
 
+	// Distinct-but-consistent hue per arc, spread evenly around the wheel via
+	// the golden angle so neighbouring arc numbers don't land on similar
+	// colors. Purely a scanning aid — status/progress are still communicated
+	// by the badge and progress bar below, not by this hue.
+	function arcHue(arcNumber: number) {
+		return (arcNumber * 137.508) % 360;
+	}
+
 	function thumbGradient(arc: UnifiedArc, pct: number) {
-		if (arc.status) return 'linear-gradient(135deg,#3a2f1c,#1c2028)';
-		if (pct === 0) return 'linear-gradient(135deg,#2a2028,#1c2028)';
-		return 'linear-gradient(135deg,#233042,#1c2028)';
+		const hue = arcHue(arc.arc);
+		const sat = pct > 0 ? 40 : 26;
+		const light = pct > 0 ? 20 : 15;
+		return `linear-gradient(135deg, hsl(${hue} ${sat}% ${light}%), #1c2028)`;
 	}
 
 	function numColor(arc: UnifiedArc, pct: number) {
-		if (arc.status) return '#f5a623';
-		if (pct === 0) return '#8992a0';
-		return '#4d9fff';
+		if (pct >= 100) return '#3ecf8e';
+		return `hsl(${arcHue(arc.arc)} 65% 78%)`;
 	}
 
 	function countColor(pct: number) {

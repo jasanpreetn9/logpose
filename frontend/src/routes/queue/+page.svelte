@@ -1,8 +1,10 @@
 <script lang="ts">
 	import { onMount, onDestroy } from 'svelte';
+	import { DownloadCloud } from 'lucide-svelte';
 	import { api } from '$lib/api';
 	import { arcs } from '$lib/stores';
 	import ManualImportModal from '$lib/components/ManualImportModal.svelte';
+	import EmptyState from '$lib/components/EmptyState.svelte';
 	import { queueStateStyle, fmtBytes, fmtSpeed, fmtEta } from '$lib/statusStyles';
 
 	let queue = $state<QueueItem[]>([]);
@@ -113,7 +115,13 @@
 {/if}
 
 {#if loaded && queue.length === 0}
-	<div class="py-10 text-center text-[13px] text-muted-foreground">Queue is empty</div>
+	<EmptyState
+		icon={DownloadCloud}
+		title="Queue is empty"
+		description="Downloads you queue from Wanted or an arc page show up here while they're fetching."
+		actionLabel="Go to Wanted"
+		actionHref="/wanted"
+	/>
 {:else if queue.length > 0}
 	<div class="mb-6 flex flex-col gap-2.5">
 		{#each queue as item (item.hash)}

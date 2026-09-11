@@ -1,6 +1,8 @@
 <script lang="ts">
+	import { Clock } from 'lucide-svelte';
 	import { api } from '$lib/api';
 	import { historyEvents } from '$lib/stores';
+	import EmptyState from '$lib/components/EmptyState.svelte';
 	import { fmtRelativeTime } from '$lib/statusStyles';
 
 	let refreshing = $state(false);
@@ -27,9 +29,11 @@
 </div>
 
 {#if $historyEvents.length === 0}
-	<div class="py-12 text-center text-[12.5px] text-muted-foreground">
-		No imports yet. Use "Scan Downloads" to import episodes from your downloads folder.
-	</div>
+	<EmptyState
+		icon={Clock}
+		title="No imports yet"
+		description={'Use "Scan Downloads" above to import episodes from your downloads folder.'}
+	/>
 {:else}
 	<div class="flex flex-col gap-px overflow-hidden rounded-md border border-border bg-border">
 		{#each $historyEvents as ev (ev.id)}
