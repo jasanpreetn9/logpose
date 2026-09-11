@@ -3,7 +3,7 @@
 A Sonarr-style media manager built specifically for [One Pace](https://onepace.net). Tracks arcs and episodes, monitors for new releases, automatically downloads through qBittorrent, generates Jellyfin-compatible NFO files, and keeps your library organised.
 
 <div align="center">
-  <img src="https://github.com/jasanpreetn9/logpose/blob/main/public/view.png?raw=true">
+  <img src="https://github.com/jasanpreetn9/logpose/blob/main/public/library.png?raw=true">
 </div>
 
 ---
@@ -17,6 +17,10 @@ A Sonarr-style media manager built specifically for [One Pace](https://onepace.n
   - Library: `S36E01 - New Emperors [CA3F14A8].mkv`
 - Generates Jellyfin-compatible `.nfo` sidecar files
 - SQLite-backed persistent state (survives restarts)
+
+<div align="center">
+  <img src="https://github.com/jasanpreetn9/logpose/blob/main/public/arc-detail.png?raw=true">
+</div>
 
 **Monitoring & downloads**
 - Monitor individual episodes or entire arcs with one click
@@ -40,6 +44,21 @@ A Sonarr-style media manager built specifically for [One Pace](https://onepace.n
 - Per-arc episode list with monitor toggles, version details, and inline download/upgrade buttons
 - Activity feed and import history via SSE (live, no polling)
 - Settings page to update all config values at runtime
+
+---
+
+## Upcoming features
+
+Roughly in priority order:
+
+- **Search and filter on the Library page** — jump to an arc by name instead of scrolling the grid
+- **Calendar view** — a release-date view of upcoming and recent episodes, alongside the Wanted list
+- **Quality/version preference** — auto-prefer a resolution or version (e.g. always take Extended when available) instead of grabbing whatever the queue offers first
+- **Manual magnet/torrent add** — a paste-a-link escape hatch for one-off grabs outside the metadata feed
+- **Backup/export** — one-click export of `library.db` and `config.yml` for safekeeping before an upgrade
+- **Additional download clients** — Transmission, Deluge, and SABnzbd support alongside qBittorrent
+- **Broader notifications** — Plex/Emby library refresh and a generic webhook, alongside the existing Discord and Jellyfin integrations
+- **Optional login** — a single-account UI login for instances reachable beyond a trusted LAN
 
 ---
 
