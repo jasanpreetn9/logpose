@@ -80,6 +80,34 @@ func isFileStable(path string) bool {
 	return before.Size() == after.Size() && before.ModTime().Equal(after.ModTime())
 }
 
+// CleanStagingDir removes any leftover files in the library's .tmp staging
+// directory. moveFile stages files there mid-move; a crash or restart during
+// that window can leave debris behind forever, since nothing else ever
+// revisits the directory. Safe to call at startup, before any move is in
+// progress. Returns the number of files removed and their total size.
+func CleanStagingDir(libraryRoot string) (removed int, bytesFreed int64, err error) {
+	tmpDir := filepath.Join(libraryRoot, ".tmp")
+	entries, err := os.ReadDir(tmpDir)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return 0, 0, nil
+		}
+		return 0, 0, err
+	}
+
+	for _, entry := range entries {
+		path := filepath.Join(tmpDir, entry.Name())
+		if info, statErr := entry.Info(); statErr == nil {
+			bytesFreed += info.Size()
+		}
+		if err := os.RemoveAll(path); err != nil {
+			return removed, bytesFreed, err
+		}
+		removed++
+	}
+	return removed, bytesFreed, nil
+}
+
 // moveFile moves src to dst using a .tmp staging directory inside libraryRoot.
 // It handles cross-device moves (e.g. downloads on local disk, library on NAS)
 // by falling back to copy+delete when os.Rename returns EXDEV. onProgress, if

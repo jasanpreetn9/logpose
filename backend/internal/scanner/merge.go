@@ -2,6 +2,8 @@ package scanner
 
 import (
 	"fmt"
+	"log"
+	"os"
 	"path/filepath"
 
 	"onepace-library/internal/library"
@@ -37,11 +39,18 @@ func AddOrUpdateEpisode(
 		existing.Versions = map[string]library.EpisodeVersion{}
 	}
 
+	newPath := filepath.ToSlash(filePath)
+	if prev, ok := existing.Versions[meta.File.Version]; ok && prev.FilePath != "" && prev.FilePath != newPath {
+		if err := os.Remove(prev.FilePath); err != nil && !os.IsNotExist(err) {
+			log.Printf("merge: failed to remove superseded file %s: %v", prev.FilePath, err)
+		}
+	}
+
 	existing.Title = meta.Title
 	existing.Description = meta.Description
 	existing.Versions[meta.File.Version] = library.EpisodeVersion{
 		CRC32:          meta.File.CRC32,
-		FilePath:       filepath.ToSlash(filePath),
+		FilePath:       newPath,
 		DownloadStatus: "imported",
 	}
 
