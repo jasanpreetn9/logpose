@@ -32,6 +32,7 @@ func HandleRefreshMetadata(meta *metadata.Client, cfg *config.Config, store *lib
 		}
 
 		nfosUpdated := RegenerateStaleNFOs(meta, store)
+		backfilled := SyncMonitoredEpisodes(meta, store)
 		episodes, arcs := meta.Counts()
 
 		acts.Add(activity.EventMetadataRefresh,
@@ -39,6 +40,9 @@ func HandleRefreshMetadata(meta *metadata.Client, cfg *config.Config, store *lib
 			fmt.Sprintf("%d episodes, %d arcs, %d NFOs regenerated", episodes, arcs, nfosUpdated),
 			true,
 		)
+		if backfilled > 0 {
+			log.Printf("Backfilled monitored flag for %d newly-appeared episode(s)", backfilled)
+		}
 
 		grabbed := 0
 		if cfg.AutoDownload && cfg.QBittorrent.Enabled {
@@ -90,4 +94,37 @@ func RegenerateStaleNFOs(meta *metadata.Client, store *library.Store) int {
 		}
 	})
 	return updated
+}
+
+// SyncMonitoredEpisodes creates library entries for any metadata episodes
+// that don't exist yet on an already-monitored arc, marking them monitored.
+// Without this, an episode that appears in metadata after its arc was
+// monitored (the arc didn't have that episode listed yet when Monitor Arc
+// was clicked) would default to unmonitored and silently never surface on
+// Wanted or get auto-grabbed. Returns the number of episodes backfilled.
+func SyncMonitoredEpisodes(meta *metadata.Client, store *library.Store) int {
+	backfilled := 0
+	store.Write(func(lib *library.Library) error {
+		for arcNumber, arc := range lib.Arcs {
+			if !arc.Monitored {
+				continue
+			}
+			for _, epMeta := range meta.EpisodesByArc(arcNumber) {
+				key := fmt.Sprintf("%d", epMeta.Episode)
+				if _, exists := arc.Episodes[key]; exists {
+					continue
+				}
+				arc.Episodes[key] = library.Episode{
+					EpisodeNumber: epMeta.Episode,
+					Title:         epMeta.Title,
+					Description:   epMeta.Description,
+					Monitored:     true,
+					Versions:      map[string]library.EpisodeVersion{},
+				}
+				backfilled++
+			}
+		}
+		return nil
+	})
+	return backfilled
 }

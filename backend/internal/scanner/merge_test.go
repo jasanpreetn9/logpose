@@ -1,6 +1,8 @@
 package scanner
 
 import (
+	"os"
+	"path/filepath"
 	"testing"
 
 	"onepace-library/internal/library"
@@ -108,5 +110,39 @@ func TestAddOrUpdateEpisode_UpdatesExistingVersion(t *testing.T) {
 	}
 	if v := entry.Versions["normal"]; v.FilePath != "/lib/new-path.mkv" {
 		t.Errorf("FilePath = %q, want updated path", v.FilePath)
+	}
+}
+
+// When a version is re-imported at a new path (e.g. an upgrade grab), the
+// file left behind at the old path must be deleted — otherwise every future
+// upgrade leaks the superseded file's disk space forever (regression test
+// for the orphaned-file bug found via live-production inspection).
+func TestAddOrUpdateEpisode_DeletesSupersededFile(t *testing.T) {
+	dir := t.TempDir()
+	oldPath := filepath.Join(dir, "old.mkv")
+	newPath := filepath.Join(dir, "new.mkv")
+	if err := os.WriteFile(oldPath, []byte("old"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(newPath, []byte("new"), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	lib := library.New()
+	parsed := &ParsedFilename{ArcNumber: 1, EpisodeNum: 1, CRC32: "AAAA1111"}
+	meta := metadata.Episode{
+		Arc: 1, Episode: 1, Title: "Title",
+		File: metadata.EpisodeFile{Version: "extended", CRC32: "AAAA1111"},
+	}
+	AddOrUpdateEpisode(lib, oldPath, parsed, meta, "Arc")
+
+	meta.File.CRC32 = "BBBB2222"
+	AddOrUpdateEpisode(lib, newPath, parsed, meta, "Arc")
+
+	if _, err := os.Stat(oldPath); !os.IsNotExist(err) {
+		t.Errorf("expected superseded file %s to be deleted, stat err = %v", oldPath, err)
+	}
+	if _, err := os.Stat(newPath); err != nil {
+		t.Errorf("expected new file %s to still exist: %v", newPath, err)
 	}
 }

@@ -164,3 +164,48 @@ func TestIsFileStable_MissingFile(t *testing.T) {
 		t.Error("expected a missing file to be reported unstable")
 	}
 }
+
+// Regression test: moveFile's .tmp staging directory has no automatic
+// cleanup, so debris left behind by an interrupted move accumulates forever.
+// CleanStagingDir must remove it at startup, before any move can be in flight.
+func TestCleanStagingDir(t *testing.T) {
+	dir := t.TempDir()
+	tmpDir := filepath.Join(dir, ".tmp")
+	if err := os.MkdirAll(tmpDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(tmpDir, "leftover.mkv"), []byte("12345"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(tmpDir, "other.mkv"), []byte("67"), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	removed, bytesFreed, err := CleanStagingDir(dir)
+	if err != nil {
+		t.Fatalf("CleanStagingDir: %v", err)
+	}
+	if removed != 2 {
+		t.Errorf("removed = %d, want 2", removed)
+	}
+	if bytesFreed != 7 {
+		t.Errorf("bytesFreed = %d, want 7", bytesFreed)
+	}
+	entries, err := os.ReadDir(tmpDir)
+	if err != nil {
+		t.Fatalf("read tmpDir: %v", err)
+	}
+	if len(entries) != 0 {
+		t.Errorf("expected .tmp to be empty, got %v", entries)
+	}
+}
+
+func TestCleanStagingDir_NoTmpDir(t *testing.T) {
+	removed, bytesFreed, err := CleanStagingDir(t.TempDir())
+	if err != nil {
+		t.Fatalf("CleanStagingDir: %v", err)
+	}
+	if removed != 0 || bytesFreed != 0 {
+		t.Errorf("expected no-op for missing .tmp dir, got removed=%d bytesFreed=%d", removed, bytesFreed)
+	}
+}

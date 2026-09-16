@@ -74,6 +74,12 @@ func main() {
 		}
 	}
 
+	if removed, bytesFreed, err := scanner.CleanStagingDir(cfg.LibraryPath); err != nil {
+		log.Printf("Failed to clean .tmp staging dir: %v", err)
+	} else if removed > 0 {
+		log.Printf("Cleaned %d leftover file(s) from .tmp staging dir (%.1f MB freed)", removed, float64(bytesFreed)/1024/1024)
+	}
+
 	tracker := downloads.NewTracker()
 
 	tickerReset := make(chan time.Duration, 1)
@@ -110,6 +116,9 @@ func main() {
 				}
 				log.Println("Metadata refreshed.")
 				api.RegenerateStaleNFOs(metaClient, store)
+				if n := api.SyncMonitoredEpisodes(metaClient, store); n > 0 {
+					log.Printf("Backfilled monitored flag for %d newly-appeared episode(s)", n)
+				}
 				if cfg.AutoDownload && cfg.QBittorrent.Enabled {
 					if n := grabber.GrabWanted(metaClient, store, qb, acts, tracker); n > 0 {
 						log.Printf("Auto-grabbed %d wanted episode(s).", n)
